@@ -1,8 +1,9 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { GeneratorConfig } from "../types";
 
-// INTERNAL KEY - Hidden from User UI
-const INTERNAL_API_KEY = "AIzaSyBtAiQznbRhnRRZPrWf3wb2vBRsrfcXCdA";
+// YOUR SHARED API KEY
+// IMPORTANT: Restrict this key in Google Cloud Console to your specific domains (HTTP Referrers)
+const DEFAULT_API_KEY = "AIzaSyBtAiQznbRhnRRZPrWf3wb2vBRsrfcXCdA";
 
 // Helper to clean Base64 strings
 const cleanBase64 = (base64: string) => {
@@ -13,7 +14,6 @@ const cleanBase64 = (base64: string) => {
 // Helper to clean JSON output from Gemini (strips markdown code blocks)
 const cleanJsonText = (text: string) => {
   let cleaned = text.trim();
-  // Remove markdown code blocks
   if (cleaned.startsWith('```json')) {
     cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
   } else if (cleaned.startsWith('```')) {
@@ -22,8 +22,15 @@ const cleanJsonText = (text: string) => {
   return cleaned;
 };
 
-export const generateContent = async (config: GeneratorConfig) => {
-  const ai = new GoogleGenAI({ apiKey: INTERNAL_API_KEY });
+export const generateContent = async (config: GeneratorConfig, userApiKey?: string) => {
+  // Use user's key if provided, otherwise use the default shared key
+  const finalApiKey = userApiKey || DEFAULT_API_KEY;
+
+  if (!finalApiKey) {
+    throw new Error("Configuration Error: No API Key found.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey: finalApiKey });
   
   const modelName = 'gemini-2.5-flash';
 
@@ -141,6 +148,6 @@ export const generateContent = async (config: GeneratorConfig) => {
     return textOutput;
   } catch (error: any) {
     console.error("Gemini Service Error:", error);
-    throw error; // Re-throw to be handled by UI
+    throw error;
   }
 };

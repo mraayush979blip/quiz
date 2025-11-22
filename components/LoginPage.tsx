@@ -7,7 +7,7 @@ import {
 import { Sparkles, AlertCircle, Copy, Mail, Lock, UserPlus, LogIn } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
-  const [isSignUp, setIsSignUp] = useState(false); // Toggle state
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +63,6 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-4 font-sans relative overflow-hidden transition-colors duration-300">
-      {/* Background decoration */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-violet-500/10 dark:bg-violet-600/20 rounded-full blur-3xl animate-pulse"></div>
       
       <div className="relative z-10 bg-white/80 dark:bg-zinc-900/50 backdrop-blur-xl border border-zinc-200 dark:border-white/10 rounded-3xl p-8 md:p-12 shadow-2xl max-w-md w-full animate-slide-up transition-all">
@@ -81,7 +80,6 @@ const LoginPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Domain Authorization Error Block */}
         {domainError && (
           <div className="bg-amber-50 border border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20 rounded-xl p-4 mb-6 text-left animate-fade-in">
             <div className="flex items-start gap-2 mb-2">
@@ -104,7 +102,6 @@ const LoginPage: React.FC = () => {
           </div>
         )}
 
-        {/* General Error Block */}
         {error && (
           <div className="bg-red-50 border border-red-200 dark:bg-red-500/10 dark:border-red-500/20 rounded-lg p-3 mb-6 flex items-start gap-2 text-left animate-fade-in">
             <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
@@ -112,7 +109,6 @@ const LoginPage: React.FC = () => {
           </div>
         )}
 
-        {/* Email/Password Form */}
         <form onSubmit={handleEmailAuth} className="space-y-4 mb-6">
           <div className="space-y-4">
             <div className="relative">

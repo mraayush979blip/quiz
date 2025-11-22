@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { Session } from '../types';
 import { Trophy, Activity, BookOpen, Flame, Target, X } from 'lucide-react';
@@ -26,13 +25,9 @@ const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ sessions }) => {
     });
 
     const avgScore = totalPossible > 0 ? Math.round((totalScore / totalPossible) * 100) : 0;
-    
-    // Get unique topics
     const uniqueTopics = Array.from(new Set(sessions.map(s => s.topic)));
-    
     const totalCards = sessions.filter(s => s.type === 'flashcards').length;
 
-    // Format total duration
     const hours = Math.floor(totalDuration / 3600);
     const minutes = Math.floor((totalDuration % 3600) / 60);
     const durationString = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
@@ -49,7 +44,7 @@ const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ sessions }) => {
   }, [sessions]);
 
   const filteredSessions = useMemo(() => {
-    if (!filterTopic) return sessions.slice(0, 10); // Default to top 10 recent
+    if (!filterTopic) return sessions.slice(0, 10); 
     return sessions.filter(s => s.topic === filterTopic);
   }, [sessions, filterTopic]);
 
@@ -65,7 +60,6 @@ const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ sessions }) => {
         <p className="text-zinc-500 dark:text-zinc-400">Track your learning journey and stats.</p>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/10 p-6 rounded-2xl backdrop-blur-md shadow-sm">
           <div className="flex items-center gap-3 mb-4">
@@ -78,7 +72,6 @@ const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ sessions }) => {
           <p className="text-xs text-zinc-500 mt-2">Across {stats.quizCount} quizzes</p>
         </div>
 
-        {/* Clickable Topics Card */}
         <div 
           onClick={() => setShowTopicsModal(true)}
           className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/10 p-6 rounded-2xl backdrop-blur-md shadow-sm cursor-pointer hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors group"
@@ -116,7 +109,6 @@ const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ sessions }) => {
         </div>
       </div>
 
-      {/* Recent Activity List */}
       <div className="bg-white dark:bg-zinc-900/30 border border-zinc-200 dark:border-white/5 rounded-2xl p-6 shadow-sm min-h-[300px]">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
@@ -159,7 +151,6 @@ const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ sessions }) => {
         </div>
       </div>
 
-      {/* Topics Modal */}
       {showTopicsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowTopicsModal(false)}>
           <div 

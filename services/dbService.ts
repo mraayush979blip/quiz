@@ -1,4 +1,3 @@
-
 import { 
   collection, 
   addDoc, 
@@ -18,9 +17,6 @@ export const saveSessionToHistory = async (userId: string, session: Session) => 
   if (!db) return;
   
   try {
-    // Firestore throws an error if fields are 'undefined'.
-    // We sanitize the object by stripping undefined values using JSON serialization.
-    // This is necessary because the optional 'file' in config might be undefined.
     const safeSession = JSON.parse(JSON.stringify(session));
 
     await addDoc(collection(db, `users/${userId}/sessions`), {

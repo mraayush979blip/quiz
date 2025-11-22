@@ -10,7 +10,6 @@ const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({ data }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
-  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight' || e.key === ' ') {
@@ -54,19 +53,16 @@ const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({ data }) => {
         </div>
       </div>
 
-      {/* Card Container - Perspective needed for 3D flip */}
       <div className="flex-1 relative perspective-1000 group cursor-pointer" onClick={() => setIsFlipped(!isFlipped)}>
         <div 
           className={`relative w-full h-full transition-all duration-500 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`}
         >
-          {/* Front */}
           <div className="absolute inset-0 backface-hidden bg-white dark:bg-zinc-900/50 backdrop-blur-md border border-zinc-200 dark:border-white/10 rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-2xl transition-colors">
              <div className="text-xs font-bold tracking-widest text-violet-600 dark:text-violet-400 uppercase mb-4">Term</div>
              <h3 className="text-2xl md:text-4xl font-bold text-zinc-900 dark:text-white">{data[currentIndex].front}</h3>
              <p className="absolute bottom-6 text-zinc-400 dark:text-zinc-500 text-sm">Click to flip</p>
           </div>
 
-          {/* Back */}
           <div className="absolute inset-0 backface-hidden rotate-y-180 bg-zinc-50 dark:bg-zinc-800/50 backdrop-blur-md border border-violet-200 dark:border-violet-500/30 rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-2xl">
              <div className="text-xs font-bold tracking-widest text-fuchsia-600 dark:text-fuchsia-400 uppercase mb-4">Definition</div>
              <p className="text-xl md:text-2xl font-medium text-zinc-800 dark:text-zinc-100 leading-relaxed">{data[currentIndex].back}</p>
@@ -74,7 +70,6 @@ const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({ data }) => {
         </div>
       </div>
 
-      {/* Controls */}
       <div className="mt-8 flex items-center justify-center gap-6">
         <button 
           onClick={handlePrev}

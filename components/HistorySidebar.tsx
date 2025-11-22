@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { X, MessageSquare, Brain, FileText, Search, Trash2, AlertTriangle } from 'lucide-react';
 import { Session, Goal } from '../types';
@@ -30,7 +29,7 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({ sessions, isOpen, onClo
   };
 
   const handleDeleteClick = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation(); // Prevent selecting the session
+    e.stopPropagation();
     setDeletingId(id);
   };
 

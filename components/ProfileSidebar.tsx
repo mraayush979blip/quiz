@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { X, LogOut, User, BarChart2, Sparkles } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
@@ -54,7 +53,6 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose, user, 
                 </div>
             </button>
             
-            {/* Placeholder for future features */}
             <div className="w-full flex items-center gap-3 p-3 rounded-xl text-left opacity-50 cursor-not-allowed text-zinc-700 dark:text-zinc-400">
                 <div className="p-2 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
                     <Sparkles className="w-5 h-5" />

@@ -1,4 +1,3 @@
-
 import { Blob } from '@google/genai';
 
 export function decode(base64: string) {
@@ -47,7 +46,6 @@ export function createBlob(data: Float32Array): Blob {
   }
   return {
     data: encode(new Uint8Array(int16.buffer)),
-    // The supported audio MIME type is 'audio/pcm'. Do not use other types.
     mimeType: 'audio/pcm;rate=16000',
   };
 }

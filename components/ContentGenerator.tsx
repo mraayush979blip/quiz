@@ -12,7 +12,7 @@ const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onGenerate, isGener
   const [file, setFile] = useState<{ name: string, base64: string, mimeType: string } | undefined>(undefined);
   const [goal, setGoal] = useState<Goal>('quiz');
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
-  const [count, setCount] = useState(10); // Default count
+  const [count, setCount] = useState(10);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,7 +52,6 @@ const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onGenerate, isGener
 
       <form onSubmit={handleSubmit} className="bg-white dark:bg-zinc-900/50 backdrop-blur-md border border-zinc-200 dark:border-white/10 rounded-2xl p-6 md:p-8 shadow-xl dark:shadow-2xl transition-colors">
         
-        {/* Topic Input */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Topic or Concept</label>
           <input
@@ -64,7 +63,6 @@ const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onGenerate, isGener
           />
         </div>
 
-        {/* File Upload */}
         <div className="mb-8">
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Source Material (Optional)</label>
           {!file ? (
@@ -101,7 +99,6 @@ const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onGenerate, isGener
           />
         </div>
 
-        {/* Goal Selection */}
         <div className="mb-8">
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">Learning Goal</label>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -129,7 +126,6 @@ const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onGenerate, isGener
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {/* Difficulty Selection */}
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">Difficulty</label>
             <div className="flex bg-zinc-100 dark:bg-black/40 p-1 rounded-xl border border-zinc-200 dark:border-white/5">
@@ -150,7 +146,6 @@ const ContentGenerator: React.FC<ContentGeneratorProps> = ({ onGenerate, isGener
             </div>
           </div>
 
-          {/* Count Selection (Only for Quiz/Flashcards) */}
           {(goal === 'quiz' || goal === 'flashcards') && (
             <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3 flex justify-between">

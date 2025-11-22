@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, RefreshCcw, Award, ArrowRight, Timer, AlertCircle, ChevronDown, ChevronUp, BarChart } from 'lucide-react';
 import { QuizQuestion } from '../types';
@@ -18,8 +17,6 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ data, onRetry, onComplete }) =>
   const [isCompleted, setIsCompleted] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [isActive, setIsActive] = useState(true);
-
-  // For Score Card Accordion
   const [expandedQuestion, setExpandedQuestion] = useState<number | null>(null);
 
   const question = data[currentQuestionIndex];
@@ -44,7 +41,7 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ data, onRetry, onComplete }) =>
   };
 
   const handleOptionSelect = (option: string) => {
-    if (selectedOption) return; // Prevent changing answer
+    if (selectedOption) return; 
     
     setSelectedOption(option);
     setShowResult(true);
@@ -61,7 +58,7 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ data, onRetry, onComplete }) =>
   const handleNext = () => {
     if (isLastQuestion) {
       setIsCompleted(true);
-      setIsActive(false); // Stop timer
+      setIsActive(false);
       if (onComplete) {
         onComplete(score, data.length, seconds);
       }
@@ -93,7 +90,6 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ data, onRetry, onComplete }) =>
     }
   };
 
-  // Analysis Logic
   const calculateStats = () => {
     const stats: Record<string, { total: number, correct: number }> = {
       easy: { total: 0, correct: 0 },
@@ -125,7 +121,6 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ data, onRetry, onComplete }) =>
 
     return (
       <div className="max-w-3xl mx-auto animate-slide-up pb-20">
-        {/* Summary Header */}
         <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/10 rounded-3xl p-8 backdrop-blur-md shadow-xl mb-8 text-center">
           <div className="w-20 h-20 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-fuchsia-500/30">
              <Award className="w-10 h-10 text-white" />
@@ -157,7 +152,6 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ data, onRetry, onComplete }) =>
           </button>
         </div>
 
-        {/* Difficulty Analysis */}
         <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/10 rounded-3xl p-6 mb-8 shadow-sm">
            <div className="flex items-center gap-2 mb-4">
              <BarChart className="w-5 h-5 text-violet-500" />
@@ -191,7 +185,6 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ data, onRetry, onComplete }) =>
            </div>
         </div>
 
-        {/* Detailed Score Card */}
         <div className="space-y-4">
           <h3 className="text-xl font-bold text-zinc-900 dark:text-white px-2">Question Analysis</h3>
           
@@ -239,7 +232,6 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ data, onRetry, onComplete }) =>
                 {isExpanded && (
                   <div className="px-14 pb-6 animate-fade-in">
                     <div className="space-y-3">
-                       {/* User Answer */}
                        <div className={`p-3 rounded-xl border ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'}`}>
                           <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 uppercase font-bold">Your Answer</p>
                           <p className={`font-medium ${isCorrect ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
@@ -247,7 +239,6 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ data, onRetry, onComplete }) =>
                           </p>
                        </div>
 
-                       {/* Correct Answer (if wrong) */}
                        {!isCorrect && (
                          <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
                             <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 uppercase font-bold">Correct Answer</p>
@@ -257,7 +248,6 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ data, onRetry, onComplete }) =>
                          </div>
                        )}
 
-                       {/* Explanation */}
                        <div className="p-3 rounded-xl bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/5">
                           <div className="flex items-center gap-2 mb-1">
                              <AlertCircle className="w-3 h-3 text-violet-500" />
@@ -280,7 +270,6 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ data, onRetry, onComplete }) =>
 
   return (
     <div className="max-w-2xl mx-auto animate-slide-up">
-      {/* Progress Bar & Timer */}
       <div className="mb-6 flex items-center justify-between text-sm text-zinc-500 dark:text-zinc-400">
         <span>Question {currentQuestionIndex + 1} / {data.length}</span>
         <div className="flex items-center gap-4">
@@ -300,7 +289,6 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ data, onRetry, onComplete }) =>
         />
       </div>
 
-      {/* Question Card */}
       <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-md shadow-xl transition-colors">
         <h3 className="text-xl md:text-2xl font-semibold text-zinc-900 dark:text-white mb-8 leading-relaxed">
           {question.question}
@@ -337,7 +325,6 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ data, onRetry, onComplete }) =>
           })}
         </div>
 
-        {/* Explanation & Next Button */}
         {showResult && (
           <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-white/10 animate-fade-in">
             <div className="bg-zinc-50 dark:bg-white/5 rounded-xl p-4 mb-6">
