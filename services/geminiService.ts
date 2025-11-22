@@ -1,8 +1,7 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import { GeneratorConfig } from "../types";
 
 // YOUR SHARED API KEY
-// IMPORTANT: Restrict this key in Google Cloud Console to your specific domains (HTTP Referrers)
 const DEFAULT_API_KEY = "AIzaSyCQOaKrf3o3JfBsgd3bOW0dnVAZYoyXUGo";
 
 // Helper to clean Base64 strings
@@ -11,7 +10,7 @@ const cleanBase64 = (base64: string) => {
   return base64Data || base64;
 };
 
-// Helper to clean JSON output from Gemini (strips markdown code blocks)
+// Helper to clean JSON output from Gemini
 const cleanJsonText = (text: string) => {
   let cleaned = text.trim();
   if (cleaned.startsWith('```json')) {
@@ -23,16 +22,15 @@ const cleanJsonText = (text: string) => {
 };
 
 export const generateContent = async (config: GeneratorConfig, userApiKey?: string) => {
-  // Use user's key if provided, otherwise use the default shared key
   const finalApiKey = userApiKey || DEFAULT_API_KEY;
 
   if (!finalApiKey) {
     throw new Error("Configuration Error: No API Key found.");
   }
 
-  const ai = new GoogleGenAI({ apiKey: finalApiKey });
-  
+  // Using REST API directly to ensure correct Referrer headers are sent for domain verification
   const modelName = 'gemini-2.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${finalApiKey}`;
 
   const parts: any[] = [];
   
@@ -117,21 +115,37 @@ export const generateContent = async (config: GeneratorConfig, userApiKey?: stri
   parts.push({ text: promptText });
 
   try {
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: {
-        role: 'user',
-        parts: parts
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
       },
-      config: {
-        systemInstruction: systemPrompt,
-        responseMimeType: responseMimeType,
-        responseSchema: responseSchema,
-        temperature: 0.7,
-      }
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: parts
+        }],
+        systemInstruction: {
+          parts: [{ text: systemPrompt }]
+        },
+        generationConfig: {
+          responseMimeType: responseMimeType,
+          responseSchema: responseSchema,
+          temperature: 0.7
+        }
+      })
     });
 
-    const textOutput = response.text;
+    if (!response.ok) {
+      const errorData = await response.json();
+      if (response.status === 403) {
+        throw new Error("403 Forbidden: Your API Key is restricted to a different domain. Please check Google Cloud Console.");
+      }
+      throw new Error(errorData.error?.message || `API Error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const textOutput = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!textOutput) throw new Error("No response from Gemini");
 

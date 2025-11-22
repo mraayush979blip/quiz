@@ -132,8 +132,8 @@ const App: React.FC = () => {
       let errorMessage = "Failed to generate content.";
       
       if (err.message) {
-        if (err.message.includes('403')) {
-          errorMessage = "The API Key was rejected. The key might be restricted to a different domain.";
+        if (err.message.includes('403') || err.message.includes('restricted')) {
+          errorMessage = "The API Key was rejected. It is likely restricted to a different domain. Please check Google Cloud Console.";
         } else if (err.message.includes('Failed to fetch')) {
           errorMessage = "Network Error. Please check your internet connection.";
         } else {
