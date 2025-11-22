@@ -1,7 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
-import { Mic, MicOff, X, Radio, Volume2, AlertTriangle } from 'lucide-react';
-import { createBlob, decode, decodeAudioData } from '../utils/audioUtils';
+import { Mic, MicOff, X, Radio, Volume2, AlertTriangle, Loader2 } from 'lucide-react';
 
 // YOUR SHARED API KEY
 const DEFAULT_API_KEY = "AIzaSyCQOaKrf3o3JfBsgd3bOW0dnVAZYoyXUGo";
@@ -13,211 +11,252 @@ interface LiveAssistantProps {
 }
 
 const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName, apiKey }) => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'listening' | 'processing' | 'speaking' | 'error'>('idle');
   const [volumeLevel, setVolumeLevel] = useState(0);
-  const [status, setStatus] = useState<string>("Initializing...");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
 
-  const inputAudioContextRef = useRef<AudioContext | null>(null);
-  const outputAudioContextRef = useRef<AudioContext | null>(null);
-  const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  
-  const sessionPromiseRef = useRef<Promise<any> | null>(null);
-  const nextStartTimeRef = useRef<number>(0);
-  const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+  // Refs for Audio Handling
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const isMountedRef = useRef(true);
 
+  // Initialize
   useEffect(() => {
-    let isMounted = true;
-
-    const startSession = async () => {
-      const finalApiKey = apiKey || DEFAULT_API_KEY;
-
-      if (!finalApiKey) {
-        setStatus("Failed");
-        setErrorMsg("No API Key available");
-        return;
-      }
-
-      try {
-        setStatus("Connecting...");
-        const ai = new GoogleGenAI({ apiKey: finalApiKey });
-
-        // Create Audio Contexts
-        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        inputAudioContextRef.current = new AudioContextClass({ sampleRate: 16000 });
-        outputAudioContextRef.current = new AudioContextClass({ sampleRate: 24000 });
-
-        // Resume contexts immediately (fix for "suspended" state causing silence/disconnects)
-        if (inputAudioContextRef.current.state === 'suspended') {
-          await inputAudioContextRef.current.resume();
-        }
-        if (outputAudioContextRef.current.state === 'suspended') {
-          await outputAudioContextRef.current.resume();
-        }
-
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaStreamRef.current = stream;
-
-        const sessionPromise = ai.live.connect({
-          model: 'gemini-2.5-flash-native-audio-preview-09-2025',
-          config: {
-            responseModalities: [Modality.AUDIO],
-            speechConfig: {
-              voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } },
-            },
-            systemInstruction: `You are Quizzy, a helpful study companion for ${userName || 'Student'}. Speak English. Be concise and friendly.`,
-          },
-          callbacks: {
-            onopen: () => {
-              if (!isMounted) return;
-              setStatus("Listening");
-              setIsConnected(true);
-              setErrorMsg(null);
-
-              if (!inputAudioContextRef.current) return;
-              
-              const source = inputAudioContextRef.current.createMediaStreamSource(stream);
-              const processor = inputAudioContextRef.current.createScriptProcessor(4096, 1, 1);
-              scriptProcessorRef.current = processor;
-
-              processor.onaudioprocess = (e) => {
-                if (isMuted) return;
-                
-                const inputData = e.inputBuffer.getChannelData(0);
-                
-                // Calculate volume for visualizer
-                let sum = 0;
-                for(let i=0; i < inputData.length; i+=50) {
-                   sum += Math.abs(inputData[i]);
-                }
-                const average = sum / (inputData.length / 50);
-                setVolumeLevel(Math.min(average * 5, 1)); // Boost gain for visual
-
-                const pcmBlob = createBlob(inputData);
-                sessionPromise.then((session) => {
-                  session.sendRealtimeInput({ media: pcmBlob });
-                });
-              };
-
-              source.connect(processor);
-              processor.connect(inputAudioContextRef.current.destination);
-            },
-            onmessage: async (message: LiveServerMessage) => {
-              if (!isMounted || !outputAudioContextRef.current) return;
-
-              const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
-              
-              if (base64Audio) {
-                setStatus("Speaking...");
-                const ctx = outputAudioContextRef.current;
-                
-                // Ensure playback is smooth
-                const currentTime = ctx.currentTime;
-                if (nextStartTimeRef.current < currentTime) {
-                  nextStartTimeRef.current = currentTime;
-                }
-                
-                const audioBuffer = await decodeAudioData(
-                  decode(base64Audio),
-                  ctx,
-                  24000,
-                  1
-                );
-
-                const source = ctx.createBufferSource();
-                source.buffer = audioBuffer;
-                source.connect(ctx.destination);
-                
-                source.addEventListener('ended', () => {
-                   sourcesRef.current.delete(source);
-                   if (sourcesRef.current.size === 0 && isMounted) {
-                     setStatus("Listening");
-                   }
-                });
-
-                source.start(nextStartTimeRef.current);
-                nextStartTimeRef.current += audioBuffer.duration;
-                sourcesRef.current.add(source);
-              }
-
-              if (message.serverContent?.interrupted) {
-                 sourcesRef.current.forEach(src => {
-                   try { src.stop(); } catch(e) {}
-                   sourcesRef.current.delete(src);
-                 });
-                 nextStartTimeRef.current = 0;
-              }
-            },
-            onclose: (e) => {
-              if (isMounted) {
-                setIsConnected(false);
-                console.log("Session closed", e);
-                // If it closed immediately without error, it might be a restriction
-                if (status === 'Connecting...') {
-                   setStatus("Connection Rejected");
-                   setErrorMsg("Connection rejected. Your API Key may not allow WebSocket connections from this domain.");
-                } else {
-                   setStatus("Disconnected");
-                }
-              }
-            },
-            onerror: (err) => {
-              console.error("Live API Error:", err);
-              if (isMounted) {
-                setStatus("Error");
-                setErrorMsg("Connection failed. Check your internet or API key.");
-              }
-            }
-          }
-        });
-
-        sessionPromiseRef.current = sessionPromise;
-
-      } catch (err: any) {
-        console.error("Failed to start live session:", err);
-        setStatus("Failed");
-        setErrorMsg(err.message || "Could not access microphone or connect.");
-      }
-    };
-
-    startSession();
+    isMountedRef.current = true;
+    startListening();
 
     return () => {
-      isMounted = false;
-      cleanup();
+      isMountedRef.current = false;
+      stopEverything();
+      window.speechSynthesis.cancel();
     };
-  }, [userName, apiKey]);
+  }, []);
 
-  const cleanup = () => {
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(track => track.stop());
+  const stopEverything = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
     }
-    if (scriptProcessorRef.current) {
-      scriptProcessorRef.current.disconnect();
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
     }
-    if (inputAudioContextRef.current) {
-      inputAudioContextRef.current.close();
-    }
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+  };
 
-    if (outputAudioContextRef.current) {
-      outputAudioContextRef.current.close();
-    }
-    sourcesRef.current.forEach(src => tryStop(src));
-    sourcesRef.current.clear();
+  const startListening = async () => {
+    if (!isMountedRef.current) return;
+    try {
+      setStatus('listening');
+      setErrorMsg(null);
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
 
-    if (sessionPromiseRef.current) {
-      sessionPromiseRef.current.then(session => session.close()).catch(() => {});
+      // Setup Visualizer & Silence Detection
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const audioCtx = new AudioContextClass();
+      audioContextRef.current = audioCtx;
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyserRef.current = analyser;
+      const source = audioCtx.createMediaStreamSource(stream);
+      sourceRef.current = source;
+      source.connect(analyser);
+
+      // Setup Recorder
+      let mimeType = 'audio/webm';
+      if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4'; // Safari
+      }
+
+      const recorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        if (isMountedRef.current && status !== 'error') {
+          processAudio(new Blob(audioChunksRef.current, { type: mimeType }));
+        }
+      };
+
+      recorder.start(100); // Chunk every 100ms
+      monitorAudioLevels();
+
+    } catch (err: any) {
+      console.error("Mic Error:", err);
+      setStatus('error');
+      setErrorMsg("Microphone access denied or not available.");
     }
   };
 
-  const tryStop = (src: AudioBufferSourceNode) => {
-    try { src.stop(); } catch(e) {}
+  const monitorAudioLevels = () => {
+    if (!analyserRef.current || !isMountedRef.current) return;
+
+    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+    let silenceStart = Date.now();
+    let isSpeaking = false;
+
+    const checkLevel = () => {
+      if (!analyserRef.current || !isMountedRef.current || status !== 'listening') return;
+
+      analyserRef.current.getByteFrequencyData(dataArray);
+      
+      // Calculate average volume
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i];
+      }
+      const average = sum / dataArray.length;
+      
+      // Update Visualizer
+      setVolumeLevel(Math.min(average / 50, 1.5));
+
+      // Silence Detection Logic
+      const THRESHOLD = 10; // Noise floor
+      const SILENCE_DURATION = 1500; // 1.5 seconds of silence to stop
+
+      if (average > THRESHOLD) {
+        silenceStart = Date.now();
+        if (!isSpeaking) isSpeaking = true;
+      } else if (isSpeaking && Date.now() - silenceStart > SILENCE_DURATION) {
+        // User stopped speaking
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.stop();
+          return; // Stop loop
+        }
+      }
+
+      if (!isMuted) {
+        requestAnimationFrame(checkLevel);
+      }
+    };
+
+    checkLevel();
+  };
+
+  const processAudio = async (audioBlob: Blob) => {
+    setStatus('processing');
+    
+    // Convert Blob to Base64
+    const reader = new FileReader();
+    reader.readAsDataURL(audioBlob);
+    reader.onloadend = async () => {
+      const base64String = (reader.result as string).split(',')[1];
+      
+      try {
+        const finalApiKey = apiKey || DEFAULT_API_KEY;
+        const modelName = 'gemini-2.5-flash';
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${finalApiKey}`;
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              role: 'user',
+              parts: [{
+                inlineData: {
+                  mimeType: audioBlob.type,
+                  data: base64String
+                }
+              }]
+            }],
+            systemInstruction: {
+               parts: [{ text: `You are Quizzy, a friendly voice tutor for ${userName || 'Student'}. Keep answers conversational, short (1-2 sentences), and encouraging.` }]
+            },
+            generationConfig: {
+               temperature: 0.7
+            }
+          })
+        });
+
+        if (!response.ok) {
+           throw new Error(`API Error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (textResponse) {
+          speakResponse(textResponse);
+        } else {
+          // No response? Just listen again
+          startListening();
+        }
+
+      } catch (err) {
+        console.error("Gemini API Error", err);
+        setStatus('error');
+        setErrorMsg("Connection error. Please try again.");
+      }
+    };
+  };
+
+  const speakResponse = (text: string) => {
+    setStatus('speaking');
+    
+    // Cancel any previous speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    
+    // Try to select a good voice
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice = voices.find(v => v.name.includes('Google') && v.lang.includes('en')) || voices.find(v => v.lang.includes('en'));
+    if (preferredVoice) utterance.voice = preferredVoice;
+
+    utterance.onend = () => {
+      if (isMountedRef.current) {
+        startListening();
+      }
+    };
+
+    utterance.onerror = (e) => {
+      console.error("TTS Error", e);
+      if (isMountedRef.current) {
+        startListening();
+      }
+    };
+
+    window.speechSynthesis.speak(utterance);
+    
+    // Visualizer for AI speaking
+    const simulateTalking = () => {
+      if (status === 'speaking' && isMountedRef.current) {
+        setVolumeLevel(Math.random() * 0.8 + 0.2);
+        if (window.speechSynthesis.speaking) {
+          requestAnimationFrame(simulateTalking);
+        } else {
+          setVolumeLevel(0);
+        }
+      }
+    };
+    simulateTalking();
   };
 
   const toggleMute = () => {
-    setIsMuted(!isMuted);
+    if (isMuted) {
+       setIsMuted(false);
+       if (status === 'idle' || status === 'listening') startListening();
+    } else {
+       setIsMuted(true);
+       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+         mediaRecorderRef.current.stop();
+       }
+       window.speechSynthesis.cancel();
+       setStatus('idle');
+    }
   };
 
   return (
@@ -231,38 +270,39 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName, apiKey
 
       <div className="relative w-64 h-64 mb-8 flex items-center justify-center">
         <div 
-           className={`absolute inset-0 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 blur-3xl transition-all duration-100 ease-out ${status === 'Speaking...' ? 'animate-pulse opacity-80' : 'opacity-20'}`}
-           style={{ transform: `scale(${1 + volumeLevel * 3})` }}
+           className={`absolute inset-0 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 blur-3xl transition-all duration-100 ease-out ${status === 'speaking' || status === 'listening' ? 'opacity-60' : 'opacity-20'}`}
+           style={{ transform: `scale(${1 + volumeLevel * 0.5})` }}
         />
         
         <div className="relative w-40 h-40 bg-black rounded-full border-4 border-white/10 flex items-center justify-center shadow-2xl shadow-violet-500/30 overflow-hidden">
            <div className={`absolute inset-0 bg-gradient-to-t from-violet-900/50 to-transparent transition-all duration-75`} 
-                style={{ height: `${30 + volumeLevel * 150}%` }} 
+                style={{ height: `${30 + volumeLevel * 100}%` }} 
            />
            
            <div className="z-10">
-             {status === 'Connecting...' && <Radio className="w-10 h-10 text-zinc-500 animate-pulse" />}
-             {status === 'Listening' && <Mic className="w-10 h-10 text-white" />}
-             {status === 'Speaking...' && <Volume2 className="w-10 h-10 text-fuchsia-400 animate-bounce" />}
-             {(status === 'Disconnected' || status === 'Error' || status === 'Failed' || status === 'Connection Rejected') && <AlertTriangle className="w-10 h-10 text-red-500" />}
+             {status === 'idle' && <MicOff className="w-10 h-10 text-zinc-500" />}
+             {status === 'listening' && <Mic className="w-10 h-10 text-white animate-pulse" />}
+             {status === 'processing' && <Loader2 className="w-10 h-10 text-fuchsia-400 animate-spin" />}
+             {status === 'speaking' && <Volume2 className="w-10 h-10 text-fuchsia-400 animate-bounce" />}
+             {status === 'error' && <AlertTriangle className="w-10 h-10 text-red-500" />}
            </div>
         </div>
       </div>
 
-      <h2 className="text-2xl font-display font-bold text-white mb-2">{status}</h2>
+      <h2 className="text-2xl font-display font-bold text-white mb-2 capitalize">
+        {status === 'processing' ? 'Thinking...' : status}
+      </h2>
       
       {errorMsg ? (
         <div className="max-w-md text-center px-4">
           <p className="text-red-400 mb-6">{errorMsg}</p>
-          {errorMsg.includes('API Key') && (
-            <p className="text-zinc-500 text-sm">
-              The shared key might be restricted. Please update your API key in the settings.
-            </p>
-          )}
         </div>
       ) : (
-        <p className="text-zinc-400 mb-12">
-          {status === 'Listening' ? "I'm listening..." : status === 'Speaking...' ? "Quizzy is speaking..." : "Initializing audio..."}
+        <p className="text-zinc-400 mb-12 h-6 text-center">
+          {status === 'listening' ? "Listening... (stop speaking to send)" : 
+           status === 'processing' ? "Analyzing your voice..." : 
+           status === 'speaking' ? "Quizzy is speaking..." : 
+           "Paused"}
         </p>
       )}
 
