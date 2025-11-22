@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
+        darkMode: 'class', // Enable class-based dark mode
         theme: {
           extend: {
             fontFamily: {
@@ -25,6 +26,7 @@
             animation: {
               'fade-in': 'fadeIn 0.3s ease-out',
               'slide-up': 'slideUp 0.4s ease-out',
+              'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
             },
             keyframes: {
               fadeIn: {
@@ -34,6 +36,12 @@
               slideUp: {
                 '0%': { transform: 'translateY(20px)', opacity: '0' },
                 '100%': { transform: 'translateY(0)', opacity: '1' },
+              },
+              shake: {
+                '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
               }
             }
           }
@@ -46,18 +54,14 @@
         width: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #09090b; 
+        background: transparent; 
       }
       ::-webkit-scrollbar-thumb {
-        background: #27272a; 
+        background: #71717a; 
         border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #3f3f46; 
-      }
-      body {
-        background-color: #09090b;
-        color: #e4e4e7;
+        background: #52525b; 
       }
     </style>
   <script type="importmap">
@@ -71,6 +75,7 @@
     "react-markdown": "https://aistudiocdn.com/react-markdown@^10.1.0",
     "firebase/app": "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js",
     "firebase/auth": "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js",
     "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
   }
 }

@@ -1,33 +1,54 @@
+
 import React, { useState, useEffect } from 'react';
-import { Menu, Plus, Settings, History, Sparkles, LogOut } from 'lucide-react';
-import { Session, GeneratorConfig } from './types';
+import { Menu, Plus, History, Sparkles, LogOut, BarChart, Sun, Moon, Brain, Zap } from 'lucide-react';
+import { Session, GeneratorConfig, AppView } from './types';
 import { generateContent } from './services/geminiService';
-import ApiKeyInput from './components/ApiKeyInput';
+import { saveSessionToHistory, getUserHistory, updateSessionScore, deleteSession } from './services/dbService';
 import HistorySidebar from './components/HistorySidebar';
+import ProfileSidebar from './components/ProfileSidebar';
 import ContentGenerator from './components/ContentGenerator';
 import QuizPlayer from './components/QuizPlayer';
 import FlashcardPlayer from './components/FlashcardPlayer';
 import MarkdownReader from './components/MarkdownReader';
 import LoginPage from './components/LoginPage';
+import ProgressDashboard from './components/ProgressDashboard';
 import { auth } from './services/firebase';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-
-const LOCAL_STORAGE_KEY_API = 'quizzy_ai_key';
-const LOCAL_STORAGE_KEY_HISTORY = 'quizzy_ai_history';
-const DEFAULT_API_KEY = "AIzaSyBtAiQznbRhnRRZPrWf3wb2vBRsrfcXCdA";
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-
-  const [apiKey, setApiKey] = useState<string | null>(null);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   
+  // Theme State
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') as 'dark' | 'light' || 'dark';
+    }
+    return 'dark';
+  });
+
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
+  const [view, setView] = useState<AppView>('generator');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Apply Theme
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
 
   // Handle Authentication
   useEffect(() => {
@@ -42,78 +63,57 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Load API Key & History
+  // Load History from Firestore when user logs in
   useEffect(() => {
-    // Handle API Key - Use Default if not present
-    const storedKey = localStorage.getItem(LOCAL_STORAGE_KEY_API);
-    if (storedKey) {
-      setApiKey(storedKey);
-    } else {
-      // Apply default key automatically
-      setApiKey(DEFAULT_API_KEY);
-      localStorage.setItem(LOCAL_STORAGE_KEY_API, DEFAULT_API_KEY);
-    }
-
-    const storedHistory = localStorage.getItem(LOCAL_STORAGE_KEY_HISTORY);
-    if (storedHistory) {
-      try {
-        setSessions(JSON.parse(storedHistory));
-      } catch (e) {
-        console.error("Failed to parse history", e);
+    const loadHistory = async () => {
+      if (user) {
+        const history = await getUserHistory(user.uid);
+        setSessions(history);
+      } else {
+        setSessions([]);
       }
-    }
-  }, []);
-
-  // Persist history when it changes
-  useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY_HISTORY, JSON.stringify(sessions));
-  }, [sessions]);
-
-  const handleSaveApiKey = (key: string) => {
-    setApiKey(key);
-    localStorage.setItem(LOCAL_STORAGE_KEY_API, key);
-    setIsSettingsOpen(false);
-    setError(null); 
-  };
+    };
+    loadHistory();
+  }, [user]);
 
   const handleLogout = async () => {
     if (auth) {
       await signOut(auth);
-      setSessions([]); // Clear session display
+      setSessions([]);
+      setIsProfileOpen(false);
     }
   };
 
   const handleGenerate = async (config: GeneratorConfig) => {
-    if (!apiKey) {
-      setIsSettingsOpen(true);
-      return;
-    }
-
     setIsGenerating(true);
     setError(null);
 
     try {
-      const result = await generateContent(apiKey, config);
+      const result = await generateContent(config);
       
       const newSession: Session = {
-        id: crypto.randomUUID(),
         date: new Date().toISOString(),
         topic: config.topic || (config.file ? 'Document Analysis' : 'General'),
         type: config.goal,
         content: result,
-        config: config
+        config: config,
+        timestamp: Date.now()
       };
 
-      setSessions(prev => [newSession, ...prev]);
-      setCurrentSession(newSession);
+      // Save to Firestore
+      if (user) {
+        await saveSessionToHistory(user.uid, newSession);
+        // Reload history to get the new ID generated by Firestore
+        const history = await getUserHistory(user.uid);
+        setSessions(history);
+        // Set current session to the latest one (first in list usually due to sorting)
+        const savedSession = history.find(s => s.timestamp === newSession.timestamp) || newSession;
+        setCurrentSession(savedSession);
+        setView('session');
+      }
     } catch (err: any) {
       console.error(err);
-      if (err.toString().includes('403') || err.toString().includes('key')) {
-         setError("Your API Key seems invalid or expired. Please check settings.");
-         setIsSettingsOpen(true);
-      } else {
-        setError("Failed to generate content. Please try again.");
-      }
+      setError("Failed to generate content. Please try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -121,50 +121,127 @@ const App: React.FC = () => {
 
   const handleSelectSession = (session: Session) => {
     setCurrentSession(session);
+    setView('session');
     setIsSidebarOpen(false); 
   };
 
   const handleNewSession = () => {
     setCurrentSession(null);
+    setView('generator');
     setIsSidebarOpen(false);
+  };
+
+  const handleShowProgress = () => {
+    setView('progress');
+    setIsSidebarOpen(false);
+    setIsProfileOpen(false);
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!user) return;
+    try {
+      await deleteSession(user.uid, sessionId);
+      
+      // Update local state
+      const updatedSessions = sessions.filter(s => s.id !== sessionId);
+      setSessions(updatedSessions);
+
+      // If we deleted the current session, go back to generator
+      if (currentSession?.id === sessionId) {
+        handleNewSession();
+      }
+    } catch (e) {
+      console.error("Failed to delete", e);
+      setError("Could not delete session.");
+    }
+  };
+
+  const handleQuizComplete = async (score: number, total: number, duration: number) => {
+    if (user && currentSession && currentSession.id) {
+      // Optimistically update local state
+      const updatedSessions = sessions.map(s => 
+        s.id === currentSession.id ? { ...s, score, totalQuestions: total, duration } : s
+      );
+      setSessions(updatedSessions);
+
+      // Update Firestore
+      await updateSessionScore(user.uid, currentSession.id, score, total, duration);
+    }
   };
 
   const renderContent = () => {
     if (isGenerating) {
       return (
-        <div className="flex flex-col items-center justify-center h-full min-h-[50vh] animate-fade-in">
-          <div className="relative w-24 h-24 mb-8">
-            <div className="absolute inset-0 border-4 border-violet-500/30 rounded-full animate-ping"></div>
-            <div className="absolute inset-0 border-4 border-t-fuchsia-500 border-r-violet-500 border-b-fuchsia-500/50 border-l-violet-500/50 rounded-full animate-spin"></div>
-            <Sparkles className="absolute inset-0 m-auto text-white w-8 h-8 animate-pulse" />
+        <div className="flex flex-col items-center justify-center h-full min-h-[60vh] animate-fade-in">
+          <div className="relative w-32 h-32 mb-10">
+            {/* Sophisticated Neural Animation */}
+            <div className="absolute inset-0 border-4 border-violet-500/10 rounded-full animate-ping"></div>
+            <div className="absolute inset-2 border-2 border-fuchsia-500/20 rounded-full animate-ping" style={{ animationDuration: '2s' }}></div>
+            
+            {/* Spinning Rings */}
+            <div className="absolute inset-0 border-4 border-t-transparent border-r-violet-500 border-b-transparent border-l-violet-500/50 rounded-full animate-spin" style={{ animationDuration: '3s' }}></div>
+            <div className="absolute inset-4 border-4 border-t-fuchsia-500/80 border-r-transparent border-b-fuchsia-500/80 border-l-transparent rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '2s' }}></div>
+            
+            {/* Center Brain */}
+            <div className="absolute inset-0 flex items-center justify-center">
+               <Brain className="w-12 h-12 text-zinc-900 dark:text-white animate-pulse" />
+            </div>
+            
+            {/* Orbiting Sparkles */}
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 animate-bounce">
+               <Sparkles className="w-6 h-6 text-fuchsia-400 drop-shadow-[0_0_10px_rgba(232,121,249,0.8)]" />
+            </div>
+            <div className="absolute top-1/2 -right-4 -translate-y-1/2 animate-pulse">
+               <Zap className="w-5 h-5 text-violet-400 drop-shadow-[0_0_10px_rgba(167,139,250,0.8)]" />
+            </div>
           </div>
-          <h2 className="text-2xl font-display font-bold text-white mb-2">Dreaming up your content...</h2>
-          <p className="text-zinc-400">Gemini is analyzing and generating via 2.5 Flash.</p>
+          
+          <h2 className="text-3xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-400 mb-3 animate-slide-up">Thinking...</h2>
+          <p className="text-zinc-500 dark:text-zinc-400 max-w-md text-center leading-relaxed animate-slide-up" style={{ animationDelay: '0.1s' }}>
+            Gemini 2.5 is analyzing your topic, determining difficulty, and structuring your perfect study session.
+          </p>
         </div>
       );
     }
 
-    if (!currentSession) {
-      return <ContentGenerator onGenerate={handleGenerate} isGenerating={isGenerating} />;
+    if (view === 'progress') {
+      return <ProgressDashboard sessions={sessions} />;
     }
 
-    switch (currentSession.type) {
-      case 'quiz':
-        return <QuizPlayer data={currentSession.content} onRetry={() => {}} />;
-      case 'flashcards':
-        return <FlashcardPlayer data={currentSession.content} />;
-      case 'simplify':
-      case 'deep_dive':
-        return <MarkdownReader content={currentSession.content} type={currentSession.type} />;
-      default:
-        return <div>Unknown content type</div>;
+    if (view === 'generator') {
+      return (
+        <div>
+          {error && (
+            <div className="max-w-2xl mx-auto mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-600 dark:text-red-400 text-center">
+              {error}
+            </div>
+          )}
+          <ContentGenerator onGenerate={handleGenerate} isGenerating={isGenerating} />
+        </div>
+      );
     }
+
+    if (currentSession && view === 'session') {
+      switch (currentSession.type) {
+        case 'quiz':
+          return <QuizPlayer data={currentSession.content} onRetry={() => {}} onComplete={handleQuizComplete} />;
+        case 'flashcards':
+          return <FlashcardPlayer data={currentSession.content} />;
+        case 'simplify':
+        case 'deep_dive':
+          return <MarkdownReader content={currentSession.content} type={currentSession.type} />;
+        default:
+          return <div>Unknown content type</div>;
+      }
+    }
+    
+    return null;
   };
 
   // --- Render Logic ---
 
   if (authLoading) {
-    return <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-500">Loading...</div>;
+    return <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center text-zinc-500">Loading...</div>;
   }
 
   if (!user) {
@@ -172,17 +249,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-fuchsia-500/30">
-      {/* API Key Modal */}
-      {isSettingsOpen && (
-        <ApiKeyInput 
-          currentKey={apiKey || ''} 
-          onSave={handleSaveApiKey} 
-          onCancel={() => setIsSettingsOpen(false)}
-          error={error}
-        />
-      )}
-
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans selection:bg-fuchsia-500/30 transition-colors duration-300 overflow-x-hidden">
       {/* Sidebar */}
       <HistorySidebar 
         sessions={sessions} 
@@ -191,16 +258,26 @@ const App: React.FC = () => {
         onSelect={handleSelectSession}
         activeSessionId={currentSession?.id}
         onNew={handleNewSession}
+        onDelete={handleDeleteSession}
+      />
+
+      {/* Profile Sidebar */}
+      <ProfileSidebar 
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        user={user}
+        onLogout={handleLogout}
+        onShowProgress={handleShowProgress}
       />
 
       {/* Main Content */}
       <div className={`transition-all duration-300 ${isSidebarOpen ? 'lg:ml-80' : 'lg:ml-0'}`}>
         {/* Header */}
-        <header className="sticky top-0 z-20 bg-zinc-950/80 backdrop-blur-lg border-b border-white/10 px-4 py-3 flex items-center justify-between">
+        <header className="sticky top-0 z-20 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-lg border-b border-zinc-200 dark:border-white/10 px-4 py-3 flex items-center justify-between transition-colors duration-300 shadow-sm dark:shadow-none">
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 hover:bg-white/5 rounded-lg transition-colors text-zinc-400 hover:text-white"
+              className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
             >
               {isSidebarOpen ? <History className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -208,42 +285,44 @@ const App: React.FC = () => {
                <div className="w-8 h-8 bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded-lg flex items-center justify-center shadow-lg shadow-violet-500/20">
                  <Sparkles className="w-4 h-4 text-white" />
                </div>
-               <h1 className="text-lg font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400 hidden sm:block">
+               <h1 className="text-lg font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-zinc-900 to-zinc-600 dark:from-white dark:to-zinc-400 hidden sm:block">
                  Quizzy AI
                </h1>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {currentSession && (
+            
+            {/* Theme Toggle */}
+            <button 
+              onClick={toggleTheme}
+              className="p-2 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+            >
+              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+
+            {view !== 'generator' && (
               <button 
                 onClick={handleNewSession}
-                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-zinc-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all"
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/5 dark:border-white/10 rounded-full transition-all"
               >
                 <Plus className="w-4 h-4" />
                 New Session
               </button>
             )}
             
-            {/* User Profile / Logout */}
-            <div className="flex items-center gap-2 pl-2 border-l border-white/10">
-              {user.photoURL && (
-                <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-white/10" />
-              )}
-              <button 
-                onClick={handleLogout}
-                className="p-2 hover:bg-white/5 rounded-lg text-zinc-400 hover:text-red-400 transition-colors"
-                title="Sign Out"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
-            </div>
-
+            {/* User Profile Trigger */}
             <button 
-              onClick={() => setIsSettingsOpen(true)}
-              className="p-2 hover:bg-white/5 rounded-lg transition-colors text-zinc-400 hover:text-white"
+              onClick={() => setIsProfileOpen(true)}
+              className="flex items-center gap-2 pl-2 border-l border-zinc-200 dark:border-white/10 ml-2"
             >
-              <Settings className="w-5 h-5" />
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-white/10" />
+              ) : (
+                <div className="w-9 h-9 rounded-full bg-violet-500/10 dark:bg-violet-500/20 border border-violet-500/20 flex items-center justify-center text-xs font-bold text-violet-600 dark:text-violet-300 hover:bg-violet-500/20 transition-colors">
+                  {user.email?.charAt(0).toUpperCase()}
+                </div>
+              )}
             </button>
           </div>
         </header>
@@ -254,11 +333,11 @@ const App: React.FC = () => {
         </main>
       </div>
       
-      {/* Overlay for mobile sidebar */}
-      {isSidebarOpen && (
+      {/* Overlay for sidebars */}
+      {(isSidebarOpen || isProfileOpen) && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30"
+          onClick={() => { setIsSidebarOpen(false); setIsProfileOpen(false); }}
         />
       )}
     </div>

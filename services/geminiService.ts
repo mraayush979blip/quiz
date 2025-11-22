@@ -1,19 +1,21 @@
-import { GoogleGenAI, Type } from "@google/genai";
-import { GeneratorConfig, Goal } from "../types";
 
-// Helper to clean Base64 strings (remove data URL prefix)
+import { GoogleGenAI, Type } from "@google/genai";
+import { GeneratorConfig } from "../types";
+
+// INTERNAL KEY - Hidden from User UI
+const INTERNAL_API_KEY = "AIzaSyBtAiQznbRhnRRZPrWf3wb2vBRsrfcXCdA";
+
+// Helper to clean Base64 strings
 const cleanBase64 = (base64: string) => {
   const base64Data = base64.split(',')[1];
   return base64Data || base64;
 };
 
-export const generateContent = async (apiKey: string, config: GeneratorConfig) => {
-  const ai = new GoogleGenAI({ apiKey });
+export const generateContent = async (config: GeneratorConfig) => {
+  const ai = new GoogleGenAI({ apiKey: INTERNAL_API_KEY });
   
-  // Determine Model based on complexity - using flash for speed as requested
   const modelName = 'gemini-2.5-flash';
 
-  // Prepare contents
   const parts: any[] = [];
   
   if (config.file) {
@@ -34,8 +36,8 @@ export const generateContent = async (apiKey: string, config: GeneratorConfig) =
 
   switch (config.goal) {
     case 'quiz':
-      systemPrompt += "Create a multiple-choice quiz with 5-10 questions based on the topic/file provided.";
-      promptText = "Generate a list of quiz questions.";
+      systemPrompt += `Create a multiple-choice quiz with exactly ${config.count} questions based on the topic/file provided. Assign a difficulty level (easy, medium, hard) to EACH question based on its complexity.`;
+      promptText = `Generate ${config.count} quiz questions with difficulty ratings.`;
       responseMimeType = "application/json";
       responseSchema = {
         type: Type.ARRAY,
@@ -52,16 +54,21 @@ export const generateContent = async (apiKey: string, config: GeneratorConfig) =
               type: Type.STRING,
               description: "Must be exactly one of the strings from the options array"
             },
-            explanation: { type: Type.STRING, description: "Why the answer is correct" }
+            explanation: { type: Type.STRING, description: "Why the answer is correct" },
+            difficulty: { 
+              type: Type.STRING, 
+              enum: ["easy", "medium", "hard"],
+              description: "The difficulty level of this specific question"
+            }
           },
-          required: ["question", "options", "correctAnswer", "explanation"]
+          required: ["question", "options", "correctAnswer", "explanation", "difficulty"]
         }
       };
       break;
 
     case 'flashcards':
-      systemPrompt += "Create a set of 10-15 flashcards based on key concepts from the topic/file.";
-      promptText = "Generate flashcards.";
+      systemPrompt += `Create a set of exactly ${config.count} flashcards based on key concepts from the topic/file.`;
+      promptText = `Generate ${config.count} flashcards.`;
       responseMimeType = "application/json";
       responseSchema = {
         type: Type.ARRAY,
@@ -89,7 +96,6 @@ export const generateContent = async (apiKey: string, config: GeneratorConfig) =
       break;
   }
 
-  // Add text prompt to parts
   parts.push({ text: promptText });
 
   const response = await ai.models.generateContent({

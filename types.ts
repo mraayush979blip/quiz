@@ -1,3 +1,4 @@
+
 export type Goal = 'quiz' | 'flashcards' | 'simplify' | 'deep_dive';
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
@@ -10,6 +11,7 @@ export interface GeneratorConfig {
   };
   goal: Goal;
   difficulty: Difficulty;
+  count: number; // Number of questions/cards
 }
 
 export interface QuizQuestion {
@@ -17,6 +19,7 @@ export interface QuizQuestion {
   options: string[];
   correctAnswer: string;
   explanation: string;
+  difficulty?: Difficulty; // Added for analysis
 }
 
 export interface Flashcard {
@@ -25,10 +28,17 @@ export interface Flashcard {
 }
 
 export interface Session {
-  id: string;
+  id?: string; // Optional because new sessions might not have a Firestore ID yet
   date: string;
   topic: string;
   type: Goal;
-  content: any; // Can be QuizQuestion[], Flashcard[], or string (markdown)
+  content: any; 
   config: GeneratorConfig;
+  // Progress tracking
+  score?: number;
+  totalQuestions?: number;
+  timestamp?: number;
+  duration?: number; // Duration in seconds
 }
+
+export type AppView = 'generator' | 'session' | 'progress';

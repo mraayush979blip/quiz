@@ -1,10 +1,10 @@
 import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
-  GoogleAuthProvider, 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword
 } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyATmNgKgkdUWrk0x43FuqtexprTV-XEk20",
@@ -18,20 +18,19 @@ const firebaseConfig = {
 
 let app;
 let auth: any;
-let googleProvider: any;
+let db: any;
 
 try {
   app = initializeApp(firebaseConfig);
-  // Initialize Auth service specifically with the app instance
   auth = getAuth(app);
-  googleProvider = new GoogleAuthProvider();
+  db = getFirestore(app);
 } catch (error) {
   console.error("Firebase Initialization Error:", error);
 }
 
 export { 
   auth, 
-  googleProvider, 
+  db,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword
 };
