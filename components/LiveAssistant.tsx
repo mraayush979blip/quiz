@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
-import { Mic, MicOff, X, Radio, Volume2 } from 'lucide-react';
+import { Mic, MicOff, X, Radio, Volume2, AlertTriangle } from 'lucide-react';
 import { createBlob, decode, decodeAudioData } from '../utils/audioUtils';
 
 // YOUR SHARED API KEY
@@ -16,7 +16,8 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName, apiKey
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [volumeLevel, setVolumeLevel] = useState(0);
-  const [status, setStatus] = useState<string>("Connecting...");
+  const [status, setStatus] = useState<string>("Initializing...");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const inputAudioContextRef = useRef<AudioContext | null>(null);
   const outputAudioContextRef = useRef<AudioContext | null>(null);
@@ -31,20 +32,30 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName, apiKey
     let isMounted = true;
 
     const startSession = async () => {
-      // Use user key if provided, otherwise default
       const finalApiKey = apiKey || DEFAULT_API_KEY;
 
       if (!finalApiKey) {
-        setStatus("Failed to connect");
-        console.error("No API Key available");
+        setStatus("Failed");
+        setErrorMsg("No API Key available");
         return;
       }
 
       try {
+        setStatus("Connecting...");
         const ai = new GoogleGenAI({ apiKey: finalApiKey });
 
-        inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-        outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        // Create Audio Contexts
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        inputAudioContextRef.current = new AudioContextClass({ sampleRate: 16000 });
+        outputAudioContextRef.current = new AudioContextClass({ sampleRate: 24000 });
+
+        // Resume contexts immediately (fix for "suspended" state causing silence/disconnects)
+        if (inputAudioContextRef.current.state === 'suspended') {
+          await inputAudioContextRef.current.resume();
+        }
+        if (outputAudioContextRef.current.state === 'suspended') {
+          await outputAudioContextRef.current.resume();
+        }
 
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaStreamRef.current = stream;
@@ -56,13 +67,14 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName, apiKey
             speechConfig: {
               voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } },
             },
-            systemInstruction: `You are Quizzy, a helpful and friendly study companion. The user's name is ${userName || 'Student'}. Always speak in English. Keep answers concise, encouraging, and spoken in a natural conversational tone. You can help with quizzing, explaining concepts, or just chatting about study topics.`,
+            systemInstruction: `You are Quizzy, a helpful study companion for ${userName || 'Student'}. Speak English. Be concise and friendly.`,
           },
           callbacks: {
             onopen: () => {
               if (!isMounted) return;
               setStatus("Listening");
               setIsConnected(true);
+              setErrorMsg(null);
 
               if (!inputAudioContextRef.current) return;
               
@@ -75,11 +87,13 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName, apiKey
                 
                 const inputData = e.inputBuffer.getChannelData(0);
                 
+                // Calculate volume for visualizer
                 let sum = 0;
-                for(let i=0; i < inputData.length; i+=10) {
+                for(let i=0; i < inputData.length; i+=50) {
                    sum += Math.abs(inputData[i]);
                 }
-                setVolumeLevel(sum / (inputData.length / 10));
+                const average = sum / (inputData.length / 50);
+                setVolumeLevel(Math.min(average * 5, 1)); // Boost gain for visual
 
                 const pcmBlob = createBlob(inputData);
                 sessionPromise.then((session) => {
@@ -99,7 +113,11 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName, apiKey
                 setStatus("Speaking...");
                 const ctx = outputAudioContextRef.current;
                 
-                nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
+                // Ensure playback is smooth
+                const currentTime = ctx.currentTime;
+                if (nextStartTimeRef.current < currentTime) {
+                  nextStartTimeRef.current = currentTime;
+                }
                 
                 const audioBuffer = await decodeAudioData(
                   decode(base64Audio),
@@ -126,30 +144,41 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName, apiKey
 
               if (message.serverContent?.interrupted) {
                  sourcesRef.current.forEach(src => {
-                   src.stop();
+                   try { src.stop(); } catch(e) {}
                    sourcesRef.current.delete(src);
                  });
                  nextStartTimeRef.current = 0;
               }
             },
-            onclose: () => {
+            onclose: (e) => {
               if (isMounted) {
-                setStatus("Disconnected");
                 setIsConnected(false);
+                console.log("Session closed", e);
+                // If it closed immediately without error, it might be a restriction
+                if (status === 'Connecting...') {
+                   setStatus("Connection Rejected");
+                   setErrorMsg("Connection rejected. Your API Key may not allow WebSocket connections from this domain.");
+                } else {
+                   setStatus("Disconnected");
+                }
               }
             },
             onerror: (err) => {
               console.error("Live API Error:", err);
-              if (isMounted) setStatus("Error occurred");
+              if (isMounted) {
+                setStatus("Error");
+                setErrorMsg("Connection failed. Check your internet or API key.");
+              }
             }
           }
         });
 
         sessionPromiseRef.current = sessionPromise;
 
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to start live session:", err);
-        setStatus("Failed to connect");
+        setStatus("Failed");
+        setErrorMsg(err.message || "Could not access microphone or connect.");
       }
     };
 
@@ -179,7 +208,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName, apiKey
     sourcesRef.current.clear();
 
     if (sessionPromiseRef.current) {
-      sessionPromiseRef.current.then(session => session.close());
+      sessionPromiseRef.current.then(session => session.close()).catch(() => {});
     }
   };
 
@@ -200,31 +229,42 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName, apiKey
         <X className="w-6 h-6" />
       </button>
 
-      <div className="relative w-64 h-64 mb-12 flex items-center justify-center">
+      <div className="relative w-64 h-64 mb-8 flex items-center justify-center">
         <div 
            className={`absolute inset-0 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 blur-3xl transition-all duration-100 ease-out ${status === 'Speaking...' ? 'animate-pulse opacity-80' : 'opacity-20'}`}
-           style={{ transform: `scale(${1 + volumeLevel * 5})` }}
+           style={{ transform: `scale(${1 + volumeLevel * 3})` }}
         />
         
         <div className="relative w-40 h-40 bg-black rounded-full border-4 border-white/10 flex items-center justify-center shadow-2xl shadow-violet-500/30 overflow-hidden">
            <div className={`absolute inset-0 bg-gradient-to-t from-violet-900/50 to-transparent transition-all duration-75`} 
-                style={{ height: `${30 + volumeLevel * 200}%` }} 
+                style={{ height: `${30 + volumeLevel * 150}%` }} 
            />
            
            <div className="z-10">
              {status === 'Connecting...' && <Radio className="w-10 h-10 text-zinc-500 animate-pulse" />}
              {status === 'Listening' && <Mic className="w-10 h-10 text-white" />}
              {status === 'Speaking...' && <Volume2 className="w-10 h-10 text-fuchsia-400 animate-bounce" />}
-             {status === 'Disconnected' && <X className="w-10 h-10 text-red-500" />}
-             {status === 'Failed to connect' && <X className="w-10 h-10 text-red-500" />}
+             {(status === 'Disconnected' || status === 'Error' || status === 'Failed' || status === 'Connection Rejected') && <AlertTriangle className="w-10 h-10 text-red-500" />}
            </div>
         </div>
       </div>
 
       <h2 className="text-2xl font-display font-bold text-white mb-2">{status}</h2>
-      <p className="text-zinc-400 mb-12">
-        {status === 'Listening' ? "I'm listening..." : status === 'Speaking...' ? "Quizzy is speaking..." : status === 'Failed to connect' ? "Connection Failed (Check API Key)" : "Initializing audio..."}
-      </p>
+      
+      {errorMsg ? (
+        <div className="max-w-md text-center px-4">
+          <p className="text-red-400 mb-6">{errorMsg}</p>
+          {errorMsg.includes('API Key') && (
+            <p className="text-zinc-500 text-sm">
+              The shared key might be restricted. Please update your API key in the settings.
+            </p>
+          )}
+        </div>
+      ) : (
+        <p className="text-zinc-400 mb-12">
+          {status === 'Listening' ? "I'm listening..." : status === 'Speaking...' ? "Quizzy is speaking..." : "Initializing audio..."}
+        </p>
+      )}
 
       <div className="flex items-center gap-6">
         <button
