@@ -4,7 +4,7 @@ import { Mic, MicOff, X, Radio, Volume2 } from 'lucide-react';
 import { createBlob, decode, decodeAudioData } from '../utils/audioUtils';
 
 // YOUR SHARED API KEY
-const DEFAULT_API_KEY = "AIzaSyBtAiQznbRhnRRZPrWf3wb2vBRsrfcXCdA";
+const DEFAULT_API_KEY = "AIzaSyCQOaKrf3o3JfBsgd3bOW0dnVAZYoyXUGo";
 
 interface LiveAssistantProps {
   onClose: () => void;

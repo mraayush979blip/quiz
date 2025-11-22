@@ -3,7 +3,7 @@ import { GeneratorConfig } from "../types";
 
 // YOUR SHARED API KEY
 // IMPORTANT: Restrict this key in Google Cloud Console to your specific domains (HTTP Referrers)
-const DEFAULT_API_KEY = "AIzaSyBtAiQznbRhnRRZPrWf3wb2vBRsrfcXCdA";
+const DEFAULT_API_KEY = "AIzaSyCQOaKrf3o3JfBsgd3bOW0dnVAZYoyXUGo";
 
 // Helper to clean Base64 strings
 const cleanBase64 = (base64: string) => {
