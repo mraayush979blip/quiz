@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Menu, Plus, History, Sparkles, LogOut, BarChart, Sun, Moon, Brain, Zap, Mic, BrainCircuit } from 'lucide-react';
 import { Session, GeneratorConfig, AppView } from './types';
@@ -113,8 +112,19 @@ const App: React.FC = () => {
         setView('session');
       }
     } catch (err: any) {
-      console.error(err);
-      setError("Failed to generate content. Please try again.");
+      console.error("Generation Error", err);
+      let errorMessage = "Failed to generate content.";
+      
+      if (err.message) {
+        if (err.message.includes('403')) {
+          errorMessage = "API Key Forbidden (403). You may need to allow this domain in Google AI Studio.";
+        } else if (err.message.includes('Failed to fetch')) {
+          errorMessage = "Network Error. Please check your internet connection.";
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      setError(errorMessage);
     } finally {
       setIsGenerating(false);
     }

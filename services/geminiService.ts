@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { GeneratorConfig } from "../types";
 
@@ -9,6 +8,18 @@ const INTERNAL_API_KEY = "AIzaSyBtAiQznbRhnRRZPrWf3wb2vBRsrfcXCdA";
 const cleanBase64 = (base64: string) => {
   const base64Data = base64.split(',')[1];
   return base64Data || base64;
+};
+
+// Helper to clean JSON output from Gemini (strips markdown code blocks)
+const cleanJsonText = (text: string) => {
+  let cleaned = text.trim();
+  // Remove markdown code blocks
+  if (cleaned.startsWith('```json')) {
+    cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+  }
+  return cleaned;
 };
 
 export const generateContent = async (config: GeneratorConfig) => {
@@ -98,32 +109,38 @@ export const generateContent = async (config: GeneratorConfig) => {
 
   parts.push({ text: promptText });
 
-  const response = await ai.models.generateContent({
-    model: modelName,
-    contents: {
-      role: 'user',
-      parts: parts
-    },
-    config: {
-      systemInstruction: systemPrompt,
-      responseMimeType: responseMimeType,
-      responseSchema: responseSchema,
-      temperature: 0.7,
+  try {
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: {
+        role: 'user',
+        parts: parts
+      },
+      config: {
+        systemInstruction: systemPrompt,
+        responseMimeType: responseMimeType,
+        responseSchema: responseSchema,
+        temperature: 0.7,
+      }
+    });
+
+    const textOutput = response.text;
+
+    if (!textOutput) throw new Error("No response from Gemini");
+
+    if (config.goal === 'quiz' || config.goal === 'flashcards') {
+      try {
+        const cleanedText = cleanJsonText(textOutput);
+        return JSON.parse(cleanedText);
+      } catch (e) {
+        console.error("JSON Parse Error:", e, "Raw Output:", textOutput);
+        throw new Error("AI generated invalid JSON. Please try again.");
+      }
     }
-  });
 
-  const textOutput = response.text;
-
-  if (!textOutput) throw new Error("No response from Gemini");
-
-  if (config.goal === 'quiz' || config.goal === 'flashcards') {
-    try {
-      return JSON.parse(textOutput);
-    } catch (e) {
-      console.error("JSON Parse Error", e);
-      throw new Error("Failed to parse AI response as JSON");
-    }
+    return textOutput;
+  } catch (error: any) {
+    console.error("Gemini Service Error:", error);
+    throw error; // Re-throw to be handled by UI
   }
-
-  return textOutput;
 };
