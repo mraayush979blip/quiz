@@ -1,5 +1,7 @@
 {
   "name": "Quizzy AI",
   "description": "An intelligent study companion that converts any topic or file into quizzes, flashcards, and deep dive summaries using Gemini 2.5 Flash.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }

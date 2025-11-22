@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Menu, Plus, History, Sparkles, LogOut, BarChart, Sun, Moon, Brain, Zap } from 'lucide-react';
+import { Menu, Plus, History, Sparkles, LogOut, BarChart, Sun, Moon, Brain, Zap, Mic, BrainCircuit } from 'lucide-react';
 import { Session, GeneratorConfig, AppView } from './types';
 import { generateContent } from './services/geminiService';
 import { saveSessionToHistory, getUserHistory, updateSessionScore, deleteSession } from './services/dbService';
@@ -12,6 +12,7 @@ import FlashcardPlayer from './components/FlashcardPlayer';
 import MarkdownReader from './components/MarkdownReader';
 import LoginPage from './components/LoginPage';
 import ProgressDashboard from './components/ProgressDashboard';
+import LiveAssistant from './components/LiveAssistant';
 import { auth } from './services/firebase';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 
@@ -170,6 +171,10 @@ const App: React.FC = () => {
   };
 
   const renderContent = () => {
+    if (view === 'live') {
+      return <LiveAssistant onClose={() => setView('generator')} userName={user?.displayName || 'Student'} />;
+    }
+
     if (isGenerating) {
       return (
         <div className="flex flex-col items-center justify-center h-full min-h-[60vh] animate-fade-in">
@@ -293,6 +298,21 @@ const App: React.FC = () => {
 
           <div className="flex items-center gap-3">
             
+            {/* MindSpeak (Voice Assistant) Trigger */}
+            <button 
+              onClick={() => setView('live')}
+              className="group relative flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 hover:from-violet-500/20 hover:to-fuchsia-500/20 border border-violet-200/50 dark:border-violet-500/20 transition-all duration-300 hover:shadow-[0_0_15px_rgba(167,139,250,0.3)]"
+              title="Start Voice Session"
+            >
+              <div className="relative">
+                 <div className="absolute -inset-1 bg-fuchsia-500 rounded-full opacity-0 group-hover:opacity-20 group-hover:animate-ping transition-opacity" />
+                 <BrainCircuit className="w-5 h-5 text-fuchsia-600 dark:text-fuchsia-400 relative z-10" />
+              </div>
+              <span className="text-sm font-bold text-zinc-700 dark:text-zinc-200 hidden sm:block group-hover:text-fuchsia-600 dark:group-hover:text-fuchsia-400 transition-colors">
+                MindSpeak
+              </span>
+            </button>
+
             {/* Theme Toggle */}
             <button 
               onClick={toggleTheme}

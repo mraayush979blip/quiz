@@ -52,7 +52,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
             speechConfig: {
               voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } }, // Options: Puck, Charon, Kore, Fenrir, Zephyr
             },
-            systemInstruction: `You are Quizzy, a helpful and friendly study companion. The user's name is ${userName || 'Student'}. Keep answers concise, encouraging, and spoken in a natural conversational tone. You can help with quizzing, explaining concepts, or just chatting about study topics.`,
+            systemInstruction: `You are Quizzy, a helpful and friendly study companion. The user's name is ${userName || 'Student'}. Always speak in English. Keep answers concise, encouraging, and spoken in a natural conversational tone. You can help with quizzing, explaining concepts, or just chatting about study topics.`,
           },
           callbacks: {
             onopen: () => {

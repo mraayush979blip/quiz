@@ -41,4 +41,4 @@ export interface Session {
   duration?: number; // Duration in seconds
 }
 
-export type AppView = 'generator' | 'session' | 'progress';
+export type AppView = 'generator' | 'session' | 'progress' | 'live';
