@@ -46,26 +46,26 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({ sessions, isOpen, onClo
 
   return (
     <aside 
-      className={`fixed inset-y-0 left-0 z-40 w-80 bg-white dark:bg-zinc-950/95 backdrop-blur-xl border-r border-zinc-200 dark:border-white/10 transform transition-transform duration-300 ease-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      className={`fixed inset-y-0 left-0 z-40 w-80 backdrop-blur-2xl bg-white/80 dark:bg-zinc-950/80 border-r border-white/20 dark:border-white/10 transform transition-transform duration-300 ease-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
     >
       <div className="h-full flex flex-col">
-        <div className="p-4 border-b border-zinc-200 dark:border-white/10 flex items-center justify-between">
-          <h2 className="font-display font-bold text-lg text-zinc-900 dark:text-white">Library</h2>
-          <button onClick={onClose} className="p-2 hover:bg-zinc-100 dark:hover:bg-white/5 rounded-lg text-zinc-500 dark:text-zinc-400">
+        <div className="p-5 border-b border-zinc-200/50 dark:border-white/10 flex items-center justify-between">
+          <h2 className="font-display font-bold text-xl text-zinc-900 dark:text-white">Library</h2>
+          <button onClick={onClose} className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg text-zinc-500 dark:text-zinc-400">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-4">
+        <div className="p-5">
              <button 
               onClick={onNew}
-              className="w-full py-2.5 px-4 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/10 rounded-xl text-zinc-900 dark:text-zinc-200 font-medium transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl font-bold shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
             >
                <span>+ New Study Session</span>
             </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {sessions.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 text-zinc-500">
               <p className="text-sm">No history yet.</p>
@@ -74,7 +74,7 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({ sessions, isOpen, onClo
             sessions.map((session) => (
               <div key={session.id || session.timestamp} className="relative group">
                 {deletingId === session.id ? (
-                  <div className="absolute inset-0 z-10 bg-red-500/90 rounded-xl flex items-center justify-between px-4 text-white animate-fade-in">
+                  <div className="absolute inset-0 z-10 bg-red-500/90 rounded-xl flex items-center justify-between px-4 text-white animate-fade-in backdrop-blur-sm">
                     <span className="text-xs font-bold">Delete?</span>
                     <div className="flex items-center gap-2">
                        <button onClick={cancelDelete} className="p-1 hover:bg-white/20 rounded"><X className="w-4 h-4"/></button>
@@ -85,15 +85,15 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({ sessions, isOpen, onClo
                 
                 <button
                   onClick={() => onSelect(session)}
-                  className={`w-full text-left p-3 rounded-xl transition-all border ${activeSessionId === session.id ? 'bg-zinc-100 dark:bg-white/10 border-zinc-200 dark:border-white/10' : 'border-transparent hover:bg-zinc-50 dark:hover:bg-white/5 hover:border-zinc-200 dark:hover:border-white/5'}`}
+                  className={`w-full text-left p-3 rounded-xl transition-all border ${activeSessionId === session.id ? 'bg-white dark:bg-white/10 border-violet-500/30 shadow-md' : 'border-transparent hover:bg-white/50 dark:hover:bg-white/5 hover:border-white/10'}`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className={`mt-1 p-1.5 rounded-lg bg-white dark:bg-black/40 border border-zinc-200 dark:border-white/5 ${activeSessionId === session.id ? 'ring-1 ring-zinc-300 dark:ring-white/20' : ''}`}>
+                    <div className={`mt-1 p-2 rounded-lg bg-zinc-100 dark:bg-black/40 ${activeSessionId === session.id ? 'ring-1 ring-violet-500/50' : ''}`}>
                       {getIcon(session.type)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <h3 className={`text-sm font-medium truncate pr-2 ${activeSessionId === session.id ? 'text-zinc-900 dark:text-white' : 'text-zinc-600 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white'}`}>
+                        <h3 className={`text-sm font-bold truncate pr-2 ${activeSessionId === session.id ? 'text-zinc-900 dark:text-white' : 'text-zinc-600 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white'}`}>
                           {session.topic}
                         </h3>
                         {session.id && (
@@ -105,7 +105,7 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({ sessions, isOpen, onClo
                           </div>
                         )}
                       </div>
-                      <p className="text-xs text-zinc-500 mt-1 flex justify-between items-center">
+                      <p className="text-xs text-zinc-500 mt-1 flex justify-between items-center font-medium">
                         <span className="capitalize">{session.type.replace('_', ' ')}</span>
                         <span>{formatDate(session.date)}</span>
                       </p>
@@ -117,7 +117,7 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({ sessions, isOpen, onClo
           )}
         </div>
         
-        <div className="p-4 border-t border-zinc-200 dark:border-white/10 text-xs text-center text-zinc-500 dark:text-zinc-600">
+        <div className="p-4 border-t border-zinc-200/50 dark:border-white/10 text-xs text-center text-zinc-500 dark:text-zinc-600">
           Saved in your Cloud Library.
         </div>
       </div>

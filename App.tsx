@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Plus, History, Sparkles, LogOut, BarChart, Sun, Moon, Brain, Zap, Mic, BrainCircuit } from 'lucide-react';
+import { Menu, Plus, History, Sparkles, Sun, Moon, Brain, Zap, BrainCircuit } from 'lucide-react';
 import { Session, GeneratorConfig, AppView } from './types';
 import { generateContent } from './services/geminiService';
 import { saveSessionToHistory, getUserHistory, updateSessionScore, deleteSession } from './services/dbService';
@@ -23,7 +23,6 @@ const App: React.FC = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   
-  // Theme State
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('theme') as 'dark' | 'light' || 'dark';
@@ -31,7 +30,6 @@ const App: React.FC = () => {
     return 'dark';
   });
 
-  // Custom API Key State (Optional now)
   const [apiKey, setApiKey] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('gemini_api_key') || '';
@@ -45,7 +43,6 @@ const App: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Apply Theme
   useEffect(() => {
     const root = window.document.documentElement;
     if (theme === 'dark') {
@@ -60,7 +57,6 @@ const App: React.FC = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
-  // Handle Authentication
   useEffect(() => {
     if (!auth) {
       setAuthLoading(false);
@@ -73,7 +69,6 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Load History from Firestore when user logs in
   useEffect(() => {
     const loadHistory = async () => {
       if (user) {
@@ -106,7 +101,6 @@ const App: React.FC = () => {
     setError(null);
 
     try {
-      // Pass the custom apiKey (can be empty, service will use default)
       const result = await generateContent(config, apiKey);
       
       const newSession: Session = {
@@ -118,7 +112,6 @@ const App: React.FC = () => {
         timestamp: Date.now()
       };
 
-      // Save to Firestore
       if (user) {
         await saveSessionToHistory(user.uid, newSession);
         const history = await getUserHistory(user.uid);
@@ -200,12 +193,12 @@ const App: React.FC = () => {
       return (
         <div className="flex flex-col items-center justify-center h-full min-h-[60vh] animate-fade-in">
           <div className="relative w-32 h-32 mb-10">
-            <div className="absolute inset-0 border-4 border-violet-500/10 rounded-full animate-ping"></div>
-            <div className="absolute inset-2 border-2 border-fuchsia-500/20 rounded-full animate-ping" style={{ animationDuration: '2s' }}></div>
+            <div className="absolute inset-0 border-4 border-violet-500/30 rounded-full animate-ping"></div>
+            <div className="absolute inset-2 border-2 border-fuchsia-500/40 rounded-full animate-ping" style={{ animationDuration: '2s' }}></div>
             <div className="absolute inset-0 border-4 border-t-transparent border-r-violet-500 border-b-transparent border-l-violet-500/50 rounded-full animate-spin" style={{ animationDuration: '3s' }}></div>
             <div className="absolute inset-4 border-4 border-t-fuchsia-500/80 border-r-transparent border-b-fuchsia-500/80 border-l-transparent rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '2s' }}></div>
             <div className="absolute inset-0 flex items-center justify-center">
-               <Brain className="w-12 h-12 text-zinc-900 dark:text-white animate-pulse" />
+               <Brain className="w-12 h-12 text-white animate-pulse" />
             </div>
             <div className="absolute -top-2 left-1/2 -translate-x-1/2 animate-bounce">
                <Sparkles className="w-6 h-6 text-fuchsia-400 drop-shadow-[0_0_10px_rgba(232,121,249,0.8)]" />
@@ -214,8 +207,8 @@ const App: React.FC = () => {
                <Zap className="w-5 h-5 text-violet-400 drop-shadow-[0_0_10px_rgba(167,139,250,0.8)]" />
             </div>
           </div>
-          <h2 className="text-3xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-400 mb-3 animate-slide-up">Thinking...</h2>
-          <p className="text-zinc-500 dark:text-zinc-400 max-w-md text-center leading-relaxed animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <h2 className="text-3xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400 mb-3 animate-slide-up">Thinking...</h2>
+          <p className="text-zinc-400 max-w-md text-center leading-relaxed animate-slide-up" style={{ animationDelay: '0.1s' }}>
             Generating your personalized content... Thank you for choosing Quizzy AI. (From Aayush & Kanishka)
           </p>
         </div>
@@ -230,10 +223,10 @@ const App: React.FC = () => {
       return (
         <div>
           {error && (
-            <div className="max-w-2xl mx-auto mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-600 dark:text-red-400 text-center flex flex-col items-center gap-2">
+            <div className="max-w-2xl mx-auto mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-center flex flex-col items-center gap-2 backdrop-blur-md">
               <p>{error}</p>
               {error.includes('API Key') && (
-                 <button onClick={() => setShowApiKeyModal(true)} className="text-sm underline hover:text-red-500">Update API Key</button>
+                 <button onClick={() => setShowApiKeyModal(true)} className="text-sm underline hover:text-red-300">Update API Key</button>
               )}
             </div>
           )}
@@ -260,7 +253,7 @@ const App: React.FC = () => {
   };
 
   if (authLoading) {
-    return <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center text-zinc-500">Loading...</div>;
+    return <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-500">Loading...</div>;
   }
 
   if (!user) {
@@ -268,8 +261,15 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans selection:bg-fuchsia-500/30 transition-colors duration-300 overflow-x-hidden">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans transition-colors duration-300 overflow-x-hidden relative">
       
+      {/* Global Ambient Background */}
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-violet-500/10 blur-[100px] animate-blob" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-fuchsia-500/10 blur-[100px] animate-blob" style={{animationDelay: '2s'}} />
+        <div className="absolute top-[40%] left-[30%] w-[30%] h-[30%] rounded-full bg-cyan-500/5 blur-[100px] animate-blob" style={{animationDelay: '4s'}} />
+      </div>
+
       {/* Fallback API Key Modal */}
       {showApiKeyModal && (
         <ApiKeyInput 
@@ -302,17 +302,17 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <div className={`transition-all duration-300 ${isSidebarOpen ? 'lg:ml-80' : 'lg:ml-0'}`}>
-        {/* Header */}
-        <header className="sticky top-0 z-20 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-lg border-b border-zinc-200 dark:border-white/10 px-4 py-3 flex items-center justify-between transition-colors duration-300 shadow-sm dark:shadow-none">
+        {/* Glossy Header */}
+        <header className="sticky top-0 z-20 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-xl border-b border-zinc-200/50 dark:border-white/10 px-4 py-3 flex items-center justify-between transition-colors duration-300">
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+              className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg transition-colors text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
             >
               {isSidebarOpen ? <History className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
-            <div className="flex items-center gap-2 cursor-pointer" onClick={handleNewSession}>
-               <div className="w-8 h-8 bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded-lg flex items-center justify-center shadow-lg shadow-violet-500/20">
+            <div className="flex items-center gap-2 cursor-pointer group" onClick={handleNewSession}>
+               <div className="w-8 h-8 bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded-lg flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:scale-105 transition-transform">
                  <Sparkles className="w-4 h-4 text-white" />
                </div>
                <h1 className="text-lg font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-zinc-900 to-zinc-600 dark:from-white dark:to-zinc-400 hidden sm:block">
@@ -324,7 +324,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setView('live')}
-              className="group relative flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 hover:from-violet-500/20 hover:to-fuchsia-500/20 border border-violet-200/50 dark:border-violet-500/20 transition-all duration-300 hover:shadow-[0_0_15px_rgba(167,139,250,0.3)]"
+              className="group relative flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-violet-500/20 hover:border-violet-500/40 transition-all duration-300"
               title="Start Voice Session"
             >
               <div className="relative">
@@ -338,7 +338,7 @@ const App: React.FC = () => {
 
             <button 
               onClick={toggleTheme}
-              className="p-2 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+              className="p-2 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
             >
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
@@ -346,7 +346,7 @@ const App: React.FC = () => {
             {view !== 'generator' && (
               <button 
                 onClick={handleNewSession}
-                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/5 dark:border-white/10 rounded-full transition-all"
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 border border-black/5 dark:border-white/10 rounded-full transition-all"
               >
                 <Plus className="w-4 h-4" />
                 New Session
@@ -358,9 +358,9 @@ const App: React.FC = () => {
               className="flex items-center gap-2 pl-2 border-l border-zinc-200 dark:border-white/10 ml-2"
             >
               {user.photoURL ? (
-                <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-white/10" />
+                <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-white/10 ring-2 ring-transparent hover:ring-violet-500/50 transition-all" />
               ) : (
-                <div className="w-9 h-9 rounded-full bg-violet-500/10 dark:bg-violet-500/20 border border-violet-500/20 flex items-center justify-center text-xs font-bold text-violet-600 dark:text-violet-300 hover:bg-violet-500/20 transition-colors">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 border border-violet-500/30 flex items-center justify-center text-xs font-bold text-violet-600 dark:text-violet-300 hover:bg-violet-500/30 transition-colors">
                   {user.email?.charAt(0).toUpperCase()}
                 </div>
               )}
@@ -368,7 +368,7 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <main className="container mx-auto max-w-5xl px-4 py-8 min-h-[calc(100vh-64px)]">
+        <main className="container mx-auto max-w-5xl px-4 py-8 min-h-[calc(100vh-64px)] relative z-10">
           {renderContent()}
         </main>
       </div>

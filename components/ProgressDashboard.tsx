@@ -56,69 +56,69 @@ const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ sessions }) => {
   return (
     <div className="max-w-4xl mx-auto animate-slide-up pb-10">
       <div className="mb-8">
-        <h2 className="text-3xl font-display font-bold text-zinc-900 dark:text-white mb-2">Your Progress</h2>
-        <p className="text-zinc-500 dark:text-zinc-400">Track your learning journey and stats.</p>
+        <h2 className="text-4xl font-display font-bold text-zinc-900 dark:text-white mb-3">Your Progress</h2>
+        <p className="text-zinc-500 dark:text-zinc-400 text-lg">Track your learning journey and stats.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/10 p-6 rounded-2xl backdrop-blur-md shadow-sm">
+        <div className="backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border border-white/20 dark:border-white/10 p-6 rounded-3xl shadow-xl">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-violet-500/10 rounded-lg text-violet-600 dark:text-violet-400">
+            <div className="p-3 bg-violet-500/20 rounded-xl text-violet-600 dark:text-violet-400">
               <Trophy className="w-6 h-6" />
             </div>
-            <span className="text-zinc-500 dark:text-zinc-400 font-medium">Avg Score</span>
+            <span className="text-zinc-500 dark:text-zinc-400 font-bold text-sm uppercase tracking-wider">Avg Score</span>
           </div>
-          <div className="text-3xl font-bold text-zinc-900 dark:text-white">{stats.avgScore}%</div>
+          <div className="text-4xl font-bold text-zinc-900 dark:text-white">{stats.avgScore}%</div>
           <p className="text-xs text-zinc-500 mt-2">Across {stats.quizCount} quizzes</p>
         </div>
 
         <div 
           onClick={() => setShowTopicsModal(true)}
-          className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/10 p-6 rounded-2xl backdrop-blur-md shadow-sm cursor-pointer hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors group"
+          className="backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border border-white/20 dark:border-white/10 p-6 rounded-3xl shadow-xl cursor-pointer hover:bg-white/60 dark:hover:bg-white/5 transition-all group"
         >
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-fuchsia-500/10 rounded-lg text-fuchsia-600 dark:text-fuchsia-400 group-hover:scale-110 transition-transform">
+            <div className="p-3 bg-fuchsia-500/20 rounded-xl text-fuchsia-600 dark:text-fuchsia-400 group-hover:scale-110 transition-transform">
               <BookOpen className="w-6 h-6" />
             </div>
-            <span className="text-zinc-500 dark:text-zinc-400 font-medium">Topics</span>
+            <span className="text-zinc-500 dark:text-zinc-400 font-bold text-sm uppercase tracking-wider">Topics</span>
           </div>
-          <div className="text-3xl font-bold text-zinc-900 dark:text-white">{stats.topicsStudied}</div>
+          <div className="text-4xl font-bold text-zinc-900 dark:text-white">{stats.topicsStudied}</div>
           <p className="text-xs text-zinc-500 mt-2 group-hover:text-fuchsia-500 transition-colors">Click to view all</p>
         </div>
 
-        <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/10 p-6 rounded-2xl backdrop-blur-md shadow-sm">
+        <div className="backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border border-white/20 dark:border-white/10 p-6 rounded-3xl shadow-xl">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-emerald-500/10 rounded-lg text-emerald-600 dark:text-emerald-400">
+            <div className="p-3 bg-emerald-500/20 rounded-xl text-emerald-600 dark:text-emerald-400">
               <Activity className="w-6 h-6" />
             </div>
-            <span className="text-zinc-500 dark:text-zinc-400 font-medium">Sessions</span>
+            <span className="text-zinc-500 dark:text-zinc-400 font-bold text-sm uppercase tracking-wider">Sessions</span>
           </div>
-          <div className="text-3xl font-bold text-zinc-900 dark:text-white">{stats.totalSessions}</div>
+          <div className="text-4xl font-bold text-zinc-900 dark:text-white">{stats.totalSessions}</div>
           <p className="text-xs text-zinc-500 mt-2">Total activities</p>
         </div>
 
-        <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-white/10 p-6 rounded-2xl backdrop-blur-md shadow-sm">
+        <div className="backdrop-blur-xl bg-white/40 dark:bg-zinc-900/40 border border-white/20 dark:border-white/10 p-6 rounded-3xl shadow-xl">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-amber-500/10 rounded-lg text-amber-600 dark:text-amber-400">
+            <div className="p-3 bg-amber-500/20 rounded-xl text-amber-600 dark:text-amber-400">
               <Target className="w-6 h-6" />
             </div>
-            <span className="text-zinc-500 dark:text-zinc-400 font-medium">Time</span>
+            <span className="text-zinc-500 dark:text-zinc-400 font-bold text-sm uppercase tracking-wider">Time</span>
           </div>
-          <div className="text-3xl font-bold text-zinc-900 dark:text-white">{stats.totalTime}</div>
+          <div className="text-4xl font-bold text-zinc-900 dark:text-white">{stats.totalTime}</div>
           <p className="text-xs text-zinc-500 mt-2">Spent quizzing</p>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-zinc-900/30 border border-zinc-200 dark:border-white/5 rounded-2xl p-6 shadow-sm min-h-[300px]">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+      <div className="backdrop-blur-xl bg-white/40 dark:bg-zinc-900/30 border border-white/20 dark:border-white/5 rounded-3xl p-8 shadow-xl min-h-[300px]">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
             <Flame className="w-5 h-5 text-orange-500" /> 
             {filterTopic ? `Activity: ${filterTopic}` : 'Recent Activity'}
           </h3>
           {filterTopic && (
             <button 
               onClick={() => setFilterTopic(null)}
-              className="text-xs flex items-center gap-1 px-2 py-1 rounded-full bg-zinc-100 dark:bg-white/10 text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+              className="text-xs flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/20 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:text-black dark:hover:text-white border border-white/10"
             >
               Clear Filter <X className="w-3 h-3" />
             </button>
@@ -127,20 +127,20 @@ const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ sessions }) => {
         
         <div className="space-y-3">
           {filteredSessions.map((session, idx) => (
-            <div key={idx} className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-black/20 rounded-xl border border-zinc-100 dark:border-white/5 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${
-                  session.type === 'quiz' ? 'bg-violet-500' : 
-                  session.type === 'flashcards' ? 'bg-emerald-500' : 'bg-amber-500'
+            <div key={idx} className="flex items-center justify-between p-4 bg-white/40 dark:bg-black/20 rounded-2xl border border-white/20 dark:border-white/5 hover:bg-white/60 dark:hover:bg-white/5 transition-colors">
+              <div className="flex items-center gap-4">
+                <div className={`w-2.5 h-2.5 rounded-full ${
+                  session.type === 'quiz' ? 'bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.5)]' : 
+                  session.type === 'flashcards' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]'
                 }`} />
                 <div>
-                   <p className="text-zinc-900 dark:text-zinc-200 font-medium text-sm">{session.topic}</p>
+                   <p className="text-zinc-900 dark:text-zinc-200 font-bold text-sm">{session.topic}</p>
                    <p className="text-zinc-500 text-xs capitalize">{session.type.replace('_', ' ')}</p>
                 </div>
               </div>
               {session.score !== undefined && (
                  <div className="text-right">
-                    <span className="text-violet-600 dark:text-violet-400 font-bold text-sm">{session.score} / {session.totalQuestions}</span>
+                    <span className="text-violet-600 dark:text-violet-400 font-bold text-sm bg-violet-500/10 px-3 py-1 rounded-full">{session.score} / {session.totalQuestions}</span>
                  </div>
               )}
             </div>
@@ -152,14 +152,14 @@ const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ sessions }) => {
       </div>
 
       {showTopicsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowTopicsModal(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" onClick={() => setShowTopicsModal(false)}>
           <div 
-            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-2xl w-full max-w-lg p-6 shadow-2xl animate-slide-up"
+            className="backdrop-blur-2xl bg-white/90 dark:bg-zinc-900/90 border border-white/20 dark:border-white/10 rounded-3xl w-full max-w-lg p-8 shadow-2xl animate-slide-up"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-6">
                <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Topics Studied</h3>
-               <button onClick={() => setShowTopicsModal(false)} className="p-2 hover:bg-zinc-100 dark:hover:bg-white/5 rounded-full transition-colors">
+               <button onClick={() => setShowTopicsModal(false)} className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors">
                  <X className="w-5 h-5 text-zinc-500" />
                </button>
             </div>
@@ -170,10 +170,10 @@ const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ sessions }) => {
                   <button
                     key={idx}
                     onClick={() => handleTopicClick(topic)}
-                    className="w-full text-left p-4 rounded-xl bg-zinc-50 dark:bg-black/20 hover:bg-zinc-100 dark:hover:bg-white/5 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all flex justify-between items-center group"
+                    className="w-full text-left p-4 rounded-xl bg-zinc-50 dark:bg-black/20 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all flex justify-between items-center group"
                   >
-                    <span className="font-medium text-zinc-700 dark:text-zinc-200">{topic}</span>
-                    <span className="text-xs text-zinc-400 group-hover:text-fuchsia-500 transition-colors">View History →</span>
+                    <span className="font-bold text-zinc-700 dark:text-zinc-200">{topic}</span>
+                    <span className="text-xs text-zinc-400 group-hover:text-fuchsia-500 transition-colors font-bold">View History →</span>
                   </button>
                 ))
               ) : (
