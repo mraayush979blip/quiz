@@ -4,7 +4,7 @@ import {
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword 
 } from '../services/firebase';
-import { Sparkles, AlertCircle, Copy, Mail, Lock, UserPlus, LogIn } from 'lucide-react';
+import { Sparkles, AlertCircle, Copy, Mail, Lock, UserPlus, LogIn, ArrowRight } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -13,6 +13,7 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [domainError, setDomainError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [suggestSignup, setSuggestSignup] = useState(false);
 
   const handleError = (err: any) => {
     console.error("Auth Error:", err);
@@ -28,7 +29,13 @@ const LoginPage: React.FC = () => {
     } else if (errorCode === 'auth/invalid-email') {
       setError("Please enter a valid email address.");
     } else if (errorCode === 'auth/user-not-found' || errorCode === 'auth/wrong-password' || errorCode === 'auth/invalid-credential') {
-      setError("Invalid email or password.");
+      // Smart handling for non-existent accounts
+      if (!isSignUp) {
+        setError("Account not found or password incorrect.");
+        setSuggestSignup(true); // Suggest creating an account
+      } else {
+        setError("Invalid email or password.");
+      }
     } else if (errorCode === 'auth/operation-not-allowed') {
       setError("Email/Password login is not enabled in Firebase Console.");
     } else {
@@ -40,6 +47,7 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     setError(null);
     setDomainError(null);
+    setSuggestSignup(false);
     setLoading(true);
 
     if (!auth) {
@@ -61,6 +69,13 @@ const LoginPage: React.FC = () => {
     }
   };
 
+  const toggleMode = () => {
+    setIsSignUp(!isSignUp);
+    setError(null);
+    setDomainError(null);
+    setSuggestSignup(false);
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 font-sans relative overflow-hidden">
       {/* Background Blobs */}
@@ -69,19 +84,23 @@ const LoginPage: React.FC = () => {
       
       <div className="relative z-10 backdrop-blur-2xl bg-white/10 dark:bg-zinc-900/60 border border-white/20 dark:border-white/10 rounded-3xl p-8 md:p-12 shadow-2xl max-w-md w-full animate-slide-up transition-all">
         
+        {/* Header Section */}
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/30 mx-auto mb-6 rotate-3 hover:rotate-0 transition-transform duration-500">
             <Sparkles className="w-10 h-10 text-white" />
           </div>
 
-          <h1 className="text-4xl font-display font-bold text-white mb-2">
-            {isSignUp ? 'Create Account' : 'Welcome Back'}
-          </h1>
-          <p className="text-zinc-400 text-sm">
-            {isSignUp ? 'Join Quizzy AI to start mastering topics.' : 'Sign in to continue your learning journey.'}
-          </p>
+          <div key={isSignUp ? 'head-signup' : 'head-login'} className={isSignUp ? 'animate-slide-in-right' : 'animate-slide-in-left'}>
+            <h1 className="text-4xl font-display font-bold text-white mb-2">
+              {isSignUp ? 'Create Account' : 'Welcome Back'}
+            </h1>
+            <p className="text-zinc-400 text-sm">
+              {isSignUp ? 'Join Quizzy AI to start mastering topics.' : 'Sign in to continue your learning journey.'}
+            </p>
+          </div>
         </div>
 
+        {/* Error Section */}
         {domainError && (
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-6 text-left animate-fade-in">
             <div className="flex items-start gap-2 mb-2">
@@ -105,14 +124,28 @@ const LoginPage: React.FC = () => {
         )}
 
         {error && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6 flex items-start gap-3 text-left animate-fade-in">
-            <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-            <p className="text-sm text-red-300">{error}</p>
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6 text-left animate-fade-in">
+            <div className="flex items-start gap-3 mb-2">
+              <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <p className="text-sm text-red-300">{error}</p>
+            </div>
+            
+            {/* Suggest Create Account Action */}
+            {suggestSignup && (
+              <button 
+                onClick={toggleMode}
+                className="mt-2 w-full py-2 px-4 bg-red-500/20 hover:bg-red-500/30 border border-red-500/20 rounded-lg text-red-200 text-xs font-bold flex items-center justify-center gap-2 transition-all"
+              >
+                <span>Create new account instead</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            )}
           </div>
         )}
 
-        <form onSubmit={handleEmailAuth} className="space-y-5 mb-8">
-          <div className="space-y-4">
+        {/* Form Section with Slide Animation */}
+        <form onSubmit={handleEmailAuth} className="space-y-5 mb-8" key={isSignUp ? 'form-signup' : 'form-login'}>
+          <div className={`space-y-4 ${isSignUp ? 'animate-slide-in-right' : 'animate-slide-in-left'}`}>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
               <input 
@@ -140,7 +173,7 @@ const LoginPage: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white rounded-2xl font-bold transition-all shadow-lg shadow-fuchsia-500/20 disabled:opacity-50 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+            className={`w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white rounded-2xl font-bold transition-all shadow-lg shadow-fuchsia-500/20 disabled:opacity-50 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] ${isSignUp ? 'animate-slide-in-right' : 'animate-slide-in-left'}`}
           >
             {loading ? (
               <span>Processing...</span>
@@ -160,7 +193,7 @@ const LoginPage: React.FC = () => {
 
         <div className="text-center">
           <button
-            onClick={() => setIsSignUp(!isSignUp)}
+            onClick={toggleMode}
             className="text-zinc-400 hover:text-white text-sm transition-colors"
           >
             {isSignUp ? (

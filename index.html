@@ -22,7 +22,9 @@
               'fade-in': 'fadeIn 0.5s ease-out',
               'slide-up': 'slideUp 0.5s ease-out',
               'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
-              'blob': 'blob 7s infinite',
+              'blob': 'blob 10s infinite',
+              'slide-in-right': 'slideInRight 0.4s ease-out',
+              'slide-in-left': 'slideInLeft 0.4s ease-out',
             },
             keyframes: {
               fadeIn: {
@@ -32,6 +34,14 @@
               slideUp: {
                 '0%': { transform: 'translateY(20px)', opacity: '0' },
                 '100%': { transform: 'translateY(0)', opacity: '1' },
+              },
+              slideInRight: {
+                '0%': { transform: 'translateX(20px)', opacity: '0' },
+                '100%': { transform: 'translateX(0)', opacity: '1' },
+              },
+              slideInLeft: {
+                '0%': { transform: 'translateX(-20px)', opacity: '0' },
+                '100%': { transform: 'translateX(0)', opacity: '1' },
               },
               shake: {
                 '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
@@ -62,11 +72,11 @@
         background: transparent; 
       }
       ::-webkit-scrollbar-thumb {
-        background: rgba(161, 161, 170, 0.3); 
+        background: rgba(255, 255, 255, 0.1); 
         border-radius: 10px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: rgba(161, 161, 170, 0.5); 
+        background: rgba(255, 255, 255, 0.2); 
       }
     </style>
   <script type="importmap">
