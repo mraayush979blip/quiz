@@ -3,8 +3,8 @@ import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
 import { Mic, MicOff, X, Radio, Volume2, AlertTriangle } from 'lucide-react';
 import { createBlob, decode, decodeAudioData } from '../utils/audioUtils';
 
-// YOUR SHARED API KEY
-const DEFAULT_API_KEY = "AIzaSyCQOaKrf3o3JfBsgd3bOW0dnVAZYoyXUGo";
+// DEDICATED VOICE API KEY
+const VOICE_API_KEY = "AIzaSyBLByU7z2Kq1G19zuKF4LEDY1E10OpfHeU";
 
 interface LiveAssistantProps {
   onClose: () => void;
@@ -12,7 +12,7 @@ interface LiveAssistantProps {
   apiKey?: string;
 }
 
-const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName, apiKey }) => {
+const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [volumeLevel, setVolumeLevel] = useState(0);
@@ -45,11 +45,8 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName, apiKey
     setErrorMsg(null);
     setStatus("Connecting...");
 
-    const finalApiKey = apiKey || DEFAULT_API_KEY;
-    if (!finalApiKey) {
-      setStatus("Configuration Error");
-      return;
-    }
+    // Always use the dedicated voice key for Live API
+    const finalApiKey = VOICE_API_KEY;
 
     try {
       const ai = new GoogleGenAI({ apiKey: finalApiKey });
@@ -161,7 +158,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName, apiKey
             console.error("Live API Error:", err);
             if (isMountedRef.current) {
                 setStatus("Error");
-                setErrorMsg("Connection failed. (Check API Key Restrictions)");
+                setErrorMsg("Connection failed.");
             }
           }
         }
