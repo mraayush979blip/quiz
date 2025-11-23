@@ -2,7 +2,8 @@ import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
   createUserWithEmailAndPassword,
-  signInWithEmailAndPassword
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
@@ -32,5 +33,6 @@ export {
   auth, 
   db,
   createUserWithEmailAndPassword,
-  signInWithEmailAndPassword
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail
 };
