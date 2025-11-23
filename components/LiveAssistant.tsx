@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
-import { Mic, MicOff, X, Radio, Volume2, AlertTriangle } from 'lucide-react';
+import { Mic, MicOff, X, Radio, Volume2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { createBlob, decode, decodeAudioData } from '../utils/audioUtils';
 
 // DEDICATED VOICE API KEY
@@ -16,8 +16,9 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [volumeLevel, setVolumeLevel] = useState(0);
-  const [status, setStatus] = useState<string>("Connecting...");
+  const [status, setStatus] = useState<string>("Initializing...");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
 
   // Audio Contexts
   const inputAudioContextRef = useRef<AudioContext | null>(null);
@@ -29,23 +30,29 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
   const sessionPromiseRef = useRef<Promise<any> | null>(null);
   const nextStartTimeRef = useRef<number>(0);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+  
+  // State Refs
   const isMountedRef = useRef(true);
+  const shouldReconnectRef = useRef(true); 
+  const activeSessionRef = useRef(false);
 
   useEffect(() => {
     isMountedRef.current = true;
+    shouldReconnectRef.current = true;
+    
     startSession();
 
     return () => {
       isMountedRef.current = false;
+      shouldReconnectRef.current = false;
       cleanup();
     };
-  }, []);
+  }, [reconnectAttempts]);
 
   const startSession = async () => {
     setErrorMsg(null);
-    setStatus("Connecting...");
+    setStatus(reconnectAttempts > 0 ? "Reconnecting..." : "Connecting...");
 
-    // Always use the dedicated voice key for Live API
     const finalApiKey = VOICE_API_KEY;
 
     try {
@@ -53,8 +60,12 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
 
       // Setup Audio Contexts
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      inputAudioContextRef.current = new AudioContextClass({ sampleRate: 16000 });
-      outputAudioContextRef.current = new AudioContextClass({ sampleRate: 24000 });
+      if (!inputAudioContextRef.current) inputAudioContextRef.current = new AudioContextClass({ sampleRate: 16000 });
+      if (!outputAudioContextRef.current) outputAudioContextRef.current = new AudioContextClass({ sampleRate: 24000 });
+
+      // Ensure they are running
+      if (inputAudioContextRef.current.state === 'suspended') await inputAudioContextRef.current.resume();
+      if (outputAudioContextRef.current.state === 'suspended') await outputAudioContextRef.current.resume();
 
       // Request Mic
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -68,13 +79,14 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } }, 
           },
-          systemInstruction: `You are Quizzy, a helpful study companion. The user is ${userName || 'Student'}. Keep it conversational.`,
+          systemInstruction: `You are Quizzy, a friendly study companion. The user is ${userName || 'Student'}. Be concise and encouraging.`,
         },
         callbacks: {
           onopen: () => {
             if (!isMountedRef.current) return;
             setStatus("Listening");
             setIsConnected(true);
+            activeSessionRef.current = true;
 
             // Stream Audio Input
             if (!inputAudioContextRef.current) return;
@@ -84,7 +96,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
             scriptProcessorRef.current = processor;
 
             processor.onaudioprocess = (e) => {
-              if (isMuted) return;
+              if (isMuted || !activeSessionRef.current) return;
               
               const inputData = e.inputBuffer.getChannelData(0);
               
@@ -95,7 +107,11 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
 
               const pcmBlob = createBlob(inputData);
               sessionPromise.then((session) => {
-                session.sendRealtimeInput({ media: pcmBlob });
+                if (activeSessionRef.current) {
+                  session.sendRealtimeInput({ media: pcmBlob });
+                }
+              }).catch(() => {
+                // Ignore send errors during disconnects
               });
             };
 
@@ -111,7 +127,6 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
               setStatus("Speaking...");
               const ctx = outputAudioContextRef.current;
               
-              // Ensure context is running
               if(ctx.state === 'suspended') await ctx.resume();
 
               nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
@@ -149,17 +164,27 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
           },
           onclose: (e) => {
             console.log("Session closed", e);
+            activeSessionRef.current = false;
+            
             if (isMountedRef.current) {
-              setStatus("Disconnected");
-              setIsConnected(false);
+              if (shouldReconnectRef.current) {
+                // Auto-reconnect logic
+                setStatus("Reconnecting...");
+                setTimeout(() => {
+                  if (isMountedRef.current && shouldReconnectRef.current) {
+                    setReconnectAttempts(prev => prev + 1);
+                  }
+                }, 2000);
+              } else {
+                setIsConnected(false);
+                setStatus("Disconnected");
+              }
             }
           },
           onerror: (err) => {
             console.error("Live API Error:", err);
-            if (isMountedRef.current) {
-                setStatus("Error");
-                setErrorMsg("Connection failed.");
-            }
+            activeSessionRef.current = false;
+            // Error will trigger close, which triggers reconnect
           }
         }
       });
@@ -174,16 +199,17 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
   };
 
   const cleanup = () => {
+    activeSessionRef.current = false;
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
     }
     if (scriptProcessorRef.current) {
       scriptProcessorRef.current.disconnect();
     }
-    if (inputAudioContextRef.current) {
+    if (inputAudioContextRef.current && inputAudioContextRef.current.state !== 'closed') {
       inputAudioContextRef.current.close();
     }
-    if (outputAudioContextRef.current) {
+    if (outputAudioContextRef.current && outputAudioContextRef.current.state !== 'closed') {
       outputAudioContextRef.current.close();
     }
     sourcesRef.current.forEach(src => {
@@ -200,10 +226,15 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
     setIsMuted(!isMuted);
   };
 
+  const handleEndSession = () => {
+    shouldReconnectRef.current = false;
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center animate-fade-in">
       <button 
-        onClick={onClose}
+        onClick={handleEndSession}
         className="absolute top-6 right-6 p-4 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"
       >
         <X className="w-6 h-6" />
@@ -222,10 +253,10 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
            />
            
            <div className="z-10">
-             {status === 'Connecting...' && <Radio className="w-10 h-10 text-zinc-500 animate-pulse" />}
+             {(status === 'Connecting...' || status === 'Reconnecting...') && <Radio className="w-10 h-10 text-zinc-500 animate-pulse" />}
              {status === 'Listening' && <Mic className="w-10 h-10 text-white" />}
              {status === 'Speaking...' && <Volume2 className="w-10 h-10 text-fuchsia-400 animate-bounce" />}
-             {(status === 'Disconnected' || status === 'Error') && <AlertTriangle className="w-10 h-10 text-red-500" />}
+             {(status === 'Disconnected' || status === 'Failed') && <AlertTriangle className="w-10 h-10 text-red-500" />}
            </div>
         </div>
       </div>
@@ -236,9 +267,10 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
       {errorMsg ? (
           <p className="text-red-400 mb-12 max-w-md text-center px-4">{errorMsg}</p>
       ) : (
-          <p className="text-zinc-400 mb-12 text-center">
+          <p className="text-zinc-400 mb-12 text-center min-h-[24px]">
             {status === 'Listening' ? "I'm listening..." : 
              status === 'Speaking...' ? "Quizzy is speaking..." : 
+             status === 'Reconnecting...' ? "Connection dropped, retrying..." :
              "Initializing..."}
           </p>
       )}
@@ -257,7 +289,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
         </button>
 
         <button
-          onClick={onClose}
+          onClick={handleEndSession}
           className="px-8 py-4 rounded-full bg-white text-black font-bold hover:bg-zinc-200 transition-colors"
         >
           End Session
