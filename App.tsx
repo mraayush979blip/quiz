@@ -216,7 +216,7 @@ const App: React.FC = () => {
           </div>
           <h2 className="text-3xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-400 mb-3 animate-slide-up">Thinking...</h2>
           <p className="text-zinc-500 dark:text-zinc-400 max-w-md text-center leading-relaxed animate-slide-up" style={{ animationDelay: '0.1s' }}>
-            Gemini 2.5 is analyzing your topic, determining difficulty, and structuring your perfect study session.
+            Generating your personalized content... Thank you for choosing Quizzy AI. (From Aayush & Kanishka)
           </p>
         </div>
       );
