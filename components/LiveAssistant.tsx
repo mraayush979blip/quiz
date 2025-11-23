@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
-import { Mic, MicOff, X, Radio, Volume2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Mic, MicOff, X, Radio, Volume2, AlertTriangle, RefreshCw, Sparkles } from 'lucide-react';
 import { createBlob, decode, decodeAudioData } from '../utils/audioUtils';
 
-// DEDICATED VOICE API KEY
-const VOICE_API_KEY = "AIzaSyBLByU7z2Kq1G19zuKF4LEDY1E10OpfHeU";
+// YOUR SPECIFIC API KEY
+// NOTE: For WebSockets (Live API) to work in browser, this key MUST NOT have "Website" restrictions in Google Cloud Console.
+// It usually requires "None" or IP-based restrictions due to how browsers handle WebSocket headers.
+const API_KEY = "AIzaSyBtAiQznbRhnRRZPrWf3wb2vBRsrfcXCdA";
 
 interface LiveAssistantProps {
   onClose: () => void;
@@ -26,7 +28,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
   const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   
-  // Session & Playback
+  // Session
   const sessionPromiseRef = useRef<Promise<any> | null>(null);
   const nextStartTimeRef = useRef<number>(0);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
@@ -34,7 +36,6 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
   // State Refs
   const isMountedRef = useRef(true);
   const shouldReconnectRef = useRef(true); 
-  const activeSessionRef = useRef(false);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -53,25 +54,21 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
     setErrorMsg(null);
     setStatus(reconnectAttempts > 0 ? "Reconnecting..." : "Connecting...");
 
-    const finalApiKey = VOICE_API_KEY;
-
     try {
-      const ai = new GoogleGenAI({ apiKey: finalApiKey });
+      const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-      // Setup Audio Contexts
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!inputAudioContextRef.current) inputAudioContextRef.current = new AudioContextClass({ sampleRate: 16000 });
       if (!outputAudioContextRef.current) outputAudioContextRef.current = new AudioContextClass({ sampleRate: 24000 });
 
-      // Ensure they are running
+      // Resume contexts if suspended (browser policy)
       if (inputAudioContextRef.current.state === 'suspended') await inputAudioContextRef.current.resume();
       if (outputAudioContextRef.current.state === 'suspended') await outputAudioContextRef.current.resume();
 
-      // Request Mic
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
 
-      // Connect to Gemini Live (WebSocket)
+      // Connect via WebSocket
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-09-2025',
         config: {
@@ -79,16 +76,16 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } }, 
           },
-          systemInstruction: `You are Quizzy, a friendly study companion. The user is ${userName || 'Student'}. Be concise and encouraging.`,
+          systemInstruction: `You are Quizzy, a helpful study companion. The user is ${userName || 'Student'}. Be concise.`,
         },
         callbacks: {
           onopen: () => {
             if (!isMountedRef.current) return;
             setStatus("Listening");
             setIsConnected(true);
-            activeSessionRef.current = true;
+            // Reset reconnects on successful connection
+            setReconnectAttempts(0); 
 
-            // Stream Audio Input
             if (!inputAudioContextRef.current) return;
             
             const source = inputAudioContextRef.current.createMediaStreamSource(stream);
@@ -96,23 +93,19 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
             scriptProcessorRef.current = processor;
 
             processor.onaudioprocess = (e) => {
-              if (isMuted || !activeSessionRef.current) return;
+              if (isMuted) return;
               
               const inputData = e.inputBuffer.getChannelData(0);
               
-              // Visualizer Math
+              // Visualizer
               let sum = 0;
               for(let i=0; i < inputData.length; i+=10) sum += Math.abs(inputData[i]);
               setVolumeLevel(sum / (inputData.length / 10));
 
               const pcmBlob = createBlob(inputData);
               sessionPromise.then((session) => {
-                if (activeSessionRef.current) {
-                  session.sendRealtimeInput({ media: pcmBlob });
-                }
-              }).catch(() => {
-                // Ignore send errors during disconnects
-              });
+                session.sendRealtimeInput({ media: pcmBlob });
+              }).catch(() => {}); // Ignore send errors during disconnects
             };
 
             source.connect(processor);
@@ -124,7 +117,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
             const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
             
             if (base64Audio) {
-              setStatus("Speaking...");
+              setStatus("Speaking");
               const ctx = outputAudioContextRef.current;
               
               if(ctx.state === 'suspended') await ctx.resume();
@@ -164,11 +157,9 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
           },
           onclose: (e) => {
             console.log("Session closed", e);
-            activeSessionRef.current = false;
-            
             if (isMountedRef.current) {
-              if (shouldReconnectRef.current) {
-                // Auto-reconnect logic
+              setIsConnected(false);
+              if (shouldReconnectRef.current && reconnectAttempts < 3) {
                 setStatus("Reconnecting...");
                 setTimeout(() => {
                   if (isMountedRef.current && shouldReconnectRef.current) {
@@ -176,15 +167,14 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
                   }
                 }, 2000);
               } else {
-                setIsConnected(false);
                 setStatus("Disconnected");
+                setErrorMsg("Connection lost. If this happens immediately, your API Key might be restricted.");
               }
             }
           },
           onerror: (err) => {
             console.error("Live API Error:", err);
-            activeSessionRef.current = false;
-            // Error will trigger close, which triggers reconnect
+            // Error often precedes close, let close handle the UI state
           }
         }
       });
@@ -199,7 +189,6 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
   };
 
   const cleanup = () => {
-    activeSessionRef.current = false;
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
     }
@@ -231,69 +220,122 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
     onClose();
   };
 
+  // --- Visual Helpers ---
+  const getOrbColor = () => {
+    switch(status) {
+      case 'Listening': return 'from-cyan-400 to-blue-500';
+      case 'Speaking': return 'from-emerald-400 to-teal-500';
+      case 'Reconnecting...': return 'from-amber-400 to-orange-500';
+      case 'Disconnected': return 'from-red-500 to-pink-600';
+      default: return 'from-violet-500 to-fuchsia-500';
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center animate-fade-in">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center animate-fade-in overflow-hidden">
+      {/* Glossy Background Overlay */}
+      <div className="absolute inset-0 bg-zinc-950/90 backdrop-blur-xl z-0"></div>
+      
+      {/* Floating Blobs Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-violet-600/20 rounded-full blur-[120px] animate-pulse"></div>
+         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-fuchsia-600/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }}></div>
+      </div>
+
+      {/* Close Button */}
       <button 
         onClick={handleEndSession}
-        className="absolute top-6 right-6 p-4 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"
+        className="absolute top-6 right-6 p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-zinc-400 hover:text-white transition-all z-50 backdrop-blur-md"
       >
         <X className="w-6 h-6" />
       </button>
 
-      {/* Visualizer Orb */}
-      <div className="relative w-64 h-64 mb-12 flex items-center justify-center">
-        <div 
-           className={`absolute inset-0 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 blur-3xl transition-all duration-100 ease-out ${status === 'Speaking...' ? 'animate-pulse opacity-80' : 'opacity-20'}`}
-           style={{ transform: `scale(${1 + volumeLevel * 5})` }}
-        />
+      {/* Main Content Card */}
+      <div className="relative z-10 flex flex-col items-center w-full max-w-md px-6">
         
-        <div className="relative w-40 h-40 bg-black rounded-full border-4 border-white/10 flex items-center justify-center shadow-2xl shadow-violet-500/30 overflow-hidden">
-           <div className={`absolute inset-0 bg-gradient-to-t from-violet-900/50 to-transparent transition-all duration-75`} 
-                style={{ height: `${30 + volumeLevel * 200}%` }} 
-           />
-           
-           <div className="z-10">
-             {(status === 'Connecting...' || status === 'Reconnecting...') && <Radio className="w-10 h-10 text-zinc-500 animate-pulse" />}
-             {status === 'Listening' && <Mic className="w-10 h-10 text-white" />}
-             {status === 'Speaking...' && <Volume2 className="w-10 h-10 text-fuchsia-400 animate-bounce" />}
-             {(status === 'Disconnected' || status === 'Failed') && <AlertTriangle className="w-10 h-10 text-red-500" />}
-           </div>
+        {/* --- THE ORB --- */}
+        <div className="relative w-64 h-64 mb-12 flex items-center justify-center">
+          {/* 1. Ambient Glow */}
+          <div 
+             className={`absolute inset-0 rounded-full bg-gradient-to-br blur-[60px] transition-all duration-500 ease-out opacity-40 ${getOrbColor()}`}
+             style={{ transform: `scale(${1 + volumeLevel * 5})` }}
+          />
+          
+          {/* 2. Core Orb (Glassy) */}
+          <div className="relative w-40 h-40 rounded-full flex items-center justify-center overflow-hidden shadow-[inset_0_-5px_20px_rgba(255,255,255,0.1),0_15px_40px_rgba(0,0,0,0.6)] z-10 bg-black/40 backdrop-blur-sm border border-white/10">
+             
+             {/* Inner Liquid/Wave Effect */}
+             <div 
+                className={`absolute inset-0 bg-gradient-to-t ${getOrbColor()} transition-all duration-150 opacity-80`} 
+                style={{ 
+                  height: `${20 + volumeLevel * 200}%`,
+                  filter: 'blur(10px)',
+                  transform: 'translateY(10%) scale(1.2)'
+                }} 
+             />
+             
+             {/* Icon Overlay */}
+             <div className="z-20 relative drop-shadow-md">
+               {status === 'Listening' && <Mic className="w-12 h-12 text-white transition-opacity opacity-90" />}
+               {status === 'Speaking' && <Volume2 className="w-12 h-12 text-white animate-bounce" />}
+               {(status === 'Reconnecting...' || status === 'Connecting...') && <Radio className="w-12 h-12 text-white animate-pulse" />}
+               {(status === 'Disconnected' || status === 'Failed' || status === 'Error') && <AlertTriangle className="w-12 h-12 text-white" />}
+             </div>
+
+             {/* Shine Reflection */}
+             <div className="absolute top-4 left-8 w-16 h-8 bg-white/20 rounded-full blur-lg -rotate-45 pointer-events-none"></div>
+          </div>
         </div>
-      </div>
 
-      {/* Status Text */}
-      <h2 className="text-2xl font-display font-bold text-white mb-2">{status}</h2>
-      
-      {errorMsg ? (
-          <p className="text-red-400 mb-12 max-w-md text-center px-4">{errorMsg}</p>
-      ) : (
-          <p className="text-zinc-400 mb-12 text-center min-h-[24px]">
-            {status === 'Listening' ? "I'm listening..." : 
-             status === 'Speaking...' ? "Quizzy is speaking..." : 
-             status === 'Reconnecting...' ? "Connection dropped, retrying..." :
-             "Initializing..."}
-          </p>
-      )}
+        {/* --- Status & Text --- */}
+        <div className="text-center space-y-4 max-w-sm">
+          <h2 className="text-4xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60 tracking-tight animate-slide-up">
+            {status}
+          </h2>
+          
+          {errorMsg ? (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 animate-fade-in">
+              <p className="text-red-400 text-sm mb-3">{errorMsg}</p>
+              {status === 'Disconnected' && (
+                <button 
+                  onClick={() => setReconnectAttempts(prev => prev + 1)}
+                  className="px-5 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-red-200 text-xs font-bold uppercase tracking-wider transition-colors"
+                >
+                  Retry Now
+                </button>
+              )}
+            </div>
+          ) : (
+            <p className="text-zinc-400 text-sm font-medium tracking-wide h-6 animate-fade-in">
+              {status === 'Listening' ? "Speak naturally, I'm listening." : 
+               status === 'Speaking' ? "Quizzy is answering..." : 
+               status === 'Reconnecting...' ? "Stabilizing connection..." : 
+               "Initializing audio core..."}
+            </p>
+          )}
+        </div>
 
-      {/* Controls */}
-      <div className="flex items-center gap-6">
-        <button
-          onClick={toggleMute}
-          className={`p-6 rounded-full border-2 transition-all ${
-            isMuted 
-              ? 'bg-red-500/20 border-red-500 text-red-500 hover:bg-red-500/30' 
-              : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
-          }`}
-        >
-          {isMuted ? <MicOff className="w-8 h-8" /> : <Mic className="w-8 h-8" />}
-        </button>
+        {/* --- Controls --- */}
+        <div className="mt-12 flex items-center justify-center gap-6 w-full">
+          <button
+            onClick={toggleMute}
+            className={`p-5 rounded-full border-2 transition-all backdrop-blur-md ${
+              isMuted 
+                ? 'bg-red-500/20 border-red-500 text-red-200 hover:bg-red-500/30' 
+                : 'bg-white/10 border-white/10 text-white hover:bg-white/20'
+            }`}
+          >
+            {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+          </button>
 
-        <button
-          onClick={handleEndSession}
-          className="px-8 py-4 rounded-full bg-white text-black font-bold hover:bg-zinc-200 transition-colors"
-        >
-          End Session
-        </button>
+          <button
+            onClick={handleEndSession}
+            className="px-8 py-4 rounded-full bg-white text-black font-bold hover:bg-zinc-200 transition-colors shadow-[0_0_30px_rgba(255,255,255,0.1)]"
+          >
+            End Session
+          </button>
+        </div>
+
       </div>
     </div>
   );
