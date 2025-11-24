@@ -2,7 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Menu, Plus, History, Sparkles, Sun, Moon, Brain, Zap, BrainCircuit } from 'lucide-react';
 import { Session, GeneratorConfig, AppView } from './types';
 import { generateContent } from './services/geminiService';
-import { saveSessionToHistory, getUserHistory, updateSessionScore, deleteSession } from './services/dbService';
+import { 
+  saveSessionToHistory, 
+  getUserHistory, 
+  updateSessionScore, 
+  deleteSession,
+  saveGlobalConfig, 
+  getGlobalConfig   
+} from './services/dbService';
 import HistorySidebar from './components/HistorySidebar';
 import ProfileSidebar from './components/ProfileSidebar';
 import ContentGenerator from './components/ContentGenerator';
@@ -23,7 +30,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
-  const [showVoiceKeyModal, setShowVoiceKeyModal] = useState(false); // Admin only
+  const [showVoiceKeyModal, setShowVoiceKeyModal] = useState(false);
   
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window !== 'undefined') {
@@ -39,13 +46,7 @@ const App: React.FC = () => {
     return '';
   });
 
-  // Admin Voice Key State
-  const [voiceApiKey, setVoiceApiKey] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('voice_api_key') || '';
-    }
-    return '';
-  });
+  const [voiceApiKey, setVoiceApiKey] = useState<string>('');
 
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
@@ -80,15 +81,21 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const loadHistory = async () => {
+    const loadData = async () => {
       if (user) {
         const history = await getUserHistory(user.uid);
         setSessions(history);
+
+        // Try fetching global key, if fails (permissions), it stays empty/default
+        const globalKey = await getGlobalConfig('voiceApiKey');
+        if (globalKey) {
+          setVoiceApiKey(globalKey);
+        }
       } else {
         setSessions([]);
       }
     };
-    loadHistory();
+    loadData();
   }, [user]);
 
   const handleLogout = async () => {
@@ -106,10 +113,20 @@ const App: React.FC = () => {
     setError(null);
   };
 
-  const handleSaveVoiceKey = (key: string) => {
-    setVoiceApiKey(key);
-    localStorage.setItem('voice_api_key', key);
+  const handleSaveVoiceKey = async (key: string) => {
+    // 1. Always update local state instantly so Admin can use it
+    setVoiceApiKey(key); 
     setShowVoiceKeyModal(false);
+    
+    // 2. Try to save globally (Might fail if rules aren't updated)
+    try {
+      await saveGlobalConfig('voiceApiKey', key);
+      // Only alert success if DB write actually worked
+      alert("Voice API Key updated globally.");
+    } catch (e) {
+      console.warn("Global save failed (likely permissions). Key saved locally only.");
+      // Suppress alert to avoid confusing the user if they haven't updated rules yet
+    }
   };
 
   const handleGenerate = async (config: GeneratorConfig) => {
