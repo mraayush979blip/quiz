@@ -13,6 +13,7 @@ import LoginPage from './components/LoginPage';
 import ProgressDashboard from './components/ProgressDashboard';
 import LiveAssistant from './components/LiveAssistant';
 import ApiKeyInput from './components/ApiKeyInput';
+import CursorParticles from './components/CursorParticles';
 import { auth } from './services/firebase';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 
@@ -22,6 +23,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [showVoiceKeyModal, setShowVoiceKeyModal] = useState(false); // Admin only
   
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window !== 'undefined') {
@@ -33,6 +35,14 @@ const App: React.FC = () => {
   const [apiKey, setApiKey] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('gemini_api_key') || '';
+    }
+    return '';
+  });
+
+  // Admin Voice Key State
+  const [voiceApiKey, setVoiceApiKey] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('voice_api_key') || '';
     }
     return '';
   });
@@ -94,6 +104,12 @@ const App: React.FC = () => {
     localStorage.setItem('gemini_api_key', key);
     setShowApiKeyModal(false);
     setError(null);
+  };
+
+  const handleSaveVoiceKey = (key: string) => {
+    setVoiceApiKey(key);
+    localStorage.setItem('voice_api_key', key);
+    setShowVoiceKeyModal(false);
   };
 
   const handleGenerate = async (config: GeneratorConfig) => {
@@ -186,7 +202,7 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     if (view === 'live') {
-      return <LiveAssistant onClose={() => setView('generator')} userName={user?.displayName || 'Student'} apiKey={apiKey} />;
+      return <LiveAssistant onClose={() => setView('generator')} userName={user?.displayName || 'Student'} apiKey={voiceApiKey} />;
     }
 
     if (isGenerating) {
@@ -257,12 +273,20 @@ const App: React.FC = () => {
   }
 
   if (!user) {
-    return <LoginPage />;
+    return (
+      <>
+        <CursorParticles />
+        <LoginPage />
+      </>
+    );
   }
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans transition-colors duration-300 overflow-x-hidden relative">
       
+      {/* Global Cursor Particles */}
+      <CursorParticles />
+
       {/* Global Ambient Background */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-violet-500/10 blur-[100px] animate-blob" />
@@ -270,13 +294,23 @@ const App: React.FC = () => {
         <div className="absolute top-[40%] left-[30%] w-[30%] h-[30%] rounded-full bg-cyan-500/5 blur-[100px] animate-blob" style={{animationDelay: '4s'}} />
       </div>
 
-      {/* Fallback API Key Modal */}
+      {/* Content API Key Modal */}
       {showApiKeyModal && (
         <ApiKeyInput 
           currentKey={apiKey} 
           onSave={handleSaveApiKey} 
           onCancel={() => setShowApiKeyModal(false)}
           error={error}
+        />
+      )}
+
+      {/* Admin Voice API Key Modal */}
+      {showVoiceKeyModal && (
+        <ApiKeyInput 
+          currentKey={voiceApiKey} 
+          onSave={handleSaveVoiceKey} 
+          onCancel={() => setShowVoiceKeyModal(false)}
+          error={null}
         />
       )}
 
@@ -298,6 +332,7 @@ const App: React.FC = () => {
         user={user}
         onLogout={handleLogout}
         onShowProgress={handleShowProgress}
+        onOpenSettings={() => setShowVoiceKeyModal(true)}
       />
 
       {/* Main Content */}

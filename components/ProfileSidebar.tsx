@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, LogOut, User, BarChart2, Sparkles } from 'lucide-react';
+import { X, LogOut, User, BarChart2, Sparkles, Settings } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 
 interface ProfileSidebarProps {
@@ -8,9 +8,12 @@ interface ProfileSidebarProps {
   user: FirebaseUser;
   onLogout: () => void;
   onShowProgress: () => void;
+  onOpenSettings: () => void;
 }
 
-const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose, user, onLogout, onShowProgress }) => {
+const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose, user, onLogout, onShowProgress, onOpenSettings }) => {
+  const isAdmin = user.email === 'mraayush979@gmail.com';
+
   return (
     <aside 
       className={`fixed inset-y-0 right-0 z-50 w-80 backdrop-blur-2xl bg-white/80 dark:bg-zinc-950/80 border-l border-white/20 dark:border-white/10 transform transition-transform duration-300 ease-out shadow-2xl ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
@@ -52,6 +55,22 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose, user, 
                     <span className="text-xs text-zinc-500 group-hover:text-zinc-600 dark:group-hover:text-zinc-400">View your stats & streaks</span>
                 </div>
             </button>
+
+            {/* Admin Settings for Specific User */}
+            {isAdmin && (
+              <button 
+                  onClick={() => { onOpenSettings(); onClose(); }}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-all hover:bg-white/50 dark:hover:bg-white/5 text-zinc-700 dark:text-zinc-200 group border border-transparent hover:border-white/10"
+              >
+                  <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 group-hover:bg-cyan-500 group-hover:text-white transition-colors">
+                      <Settings className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                      <span className="font-bold block">Admin Settings</span>
+                      <span className="text-xs text-zinc-500 group-hover:text-zinc-600 dark:group-hover:text-zinc-400">Update Voice API Key</span>
+                  </div>
+              </button>
+            )}
             
             <div className="w-full flex items-center gap-4 p-4 rounded-2xl text-left opacity-50 cursor-not-allowed text-zinc-700 dark:text-zinc-400 border border-transparent">
                 <div className="p-2.5 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">

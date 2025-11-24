@@ -1,11 +1,11 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
 import { Mic, MicOff, X, Radio, Volume2, AlertTriangle, RefreshCw, Sparkles, Loader2 } from 'lucide-react';
 import { createBlob, decode, decodeAudioData } from '../utils/audioUtils';
 
-// DEDICATED VOICE API KEY
-// This key must be UNRESTRICTED in Google Cloud Console for WebSockets to work reliably.
-const VOICE_API_KEY = "AIzaSyBLByU7z2Kq1G19zuKF4LEDY1E10OpfHeU";
+// DEFAULT FALLBACK KEY (Used if user doesn't provide one)
+const DEFAULT_API_KEY = "AIzaSyBtAiQznbRhnRRZPrWf3wb2vBRsrfcXCdA";
 
 interface LiveAssistantProps {
   onClose: () => void;
@@ -13,7 +13,7 @@ interface LiveAssistantProps {
   apiKey?: string;
 }
 
-const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
+const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName, apiKey }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [volumeLevel, setVolumeLevel] = useState(0);
@@ -54,7 +54,14 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
     setErrorMsg(null);
     setStatus(reconnectAttempts > 0 ? "Reconnecting..." : "Connecting...");
 
-    const finalApiKey = VOICE_API_KEY;
+    // PRIORITIZE USER KEY, FALLBACK TO DEFAULT
+    const finalApiKey = apiKey || DEFAULT_API_KEY;
+
+    if (!finalApiKey) {
+      setStatus("Error");
+      setErrorMsg("No API Key available. Please add one in settings.");
+      return;
+    }
 
     try {
       const ai = new GoogleGenAI({ apiKey: finalApiKey });
@@ -84,6 +91,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
             setStatus("Listening");
             setIsConnected(true);
             activeSessionRef.current = true;
+            setReconnectAttempts(0); // Reset on success
 
             if (!inputAudioContextRef.current) return;
             
@@ -160,7 +168,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
             activeSessionRef.current = false;
             
             if (isMountedRef.current) {
-              if (shouldReconnectRef.current) {
+              if (shouldReconnectRef.current && reconnectAttempts < 3) {
                 setStatus("Reconnecting...");
                 setTimeout(() => {
                   if (isMountedRef.current && shouldReconnectRef.current) {
@@ -170,6 +178,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
               } else {
                 setIsConnected(false);
                 setStatus("Disconnected");
+                setErrorMsg("Connection lost. Please check your API Key settings.");
               }
             }
           },
@@ -185,7 +194,7 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
     } catch (err) {
       console.error("Failed to start live session:", err);
       setStatus("Failed");
-      setErrorMsg("Could not access microphone or API.");
+      setErrorMsg("Could not access microphone or API. Please check permissions.");
     }
   };
 
@@ -298,6 +307,14 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName }) => {
           {errorMsg ? (
             <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 animate-fade-in">
               <p className="text-red-400 text-sm mb-3">{errorMsg}</p>
+              {status === 'Disconnected' && (
+                <button 
+                  onClick={() => setReconnectAttempts(prev => prev + 1)}
+                  className="px-5 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-red-200 text-xs font-bold uppercase tracking-wider transition-colors"
+                >
+                  Retry Now
+                </button>
+              )}
             </div>
           ) : (
             <p className="text-zinc-400 text-sm font-medium tracking-wide h-6 animate-fade-in">
