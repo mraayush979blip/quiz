@@ -4,7 +4,11 @@ import { Mic, MicOff, X, Radio, Volume2, AlertTriangle, RefreshCw, Sparkles, Loa
 import { createBlob, decode, decodeAudioData } from '../utils/audioUtils';
 
 // DEFAULT FALLBACK KEY (Used if user doesn't provide one)
-const DEFAULT_API_KEY = "AIzaSyCMq34t23KcTfGqOGJBNAW5-_IXI6hncT0";
+// Priority: 
+// 1. User provided key (prop)
+// 2. Environment Variable (VITE_VOICE_API_KEY)
+// 3. Empty string (Forces error/prompt)
+const DEFAULT_API_KEY = import.meta.env.VITE_VOICE_API_KEY || "";
 
 interface LiveAssistantProps {
   onClose: () => void;
@@ -53,12 +57,12 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName, apiKey
     setErrorMsg(null);
     setStatus(reconnectAttempts > 0 ? "Reconnecting..." : "Connecting...");
 
-    // PRIORITIZE USER KEY, FALLBACK TO DEFAULT
+    // PRIORITIZE USER KEY -> THEN ENV VAR/DEFAULT
     const finalApiKey = apiKey || DEFAULT_API_KEY;
 
     if (!finalApiKey) {
       setStatus("Error");
-      setErrorMsg("No API Key available. Please add one in settings.");
+      setErrorMsg("No API Key available. Please configure VITE_VOICE_API_KEY in deployment settings.");
       return;
     }
 
