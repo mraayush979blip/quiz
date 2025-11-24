@@ -1,11 +1,10 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
 import { Mic, MicOff, X, Radio, Volume2, AlertTriangle, RefreshCw, Sparkles, Loader2 } from 'lucide-react';
 import { createBlob, decode, decodeAudioData } from '../utils/audioUtils';
 
 // DEFAULT FALLBACK KEY (Used if user doesn't provide one)
-const DEFAULT_API_KEY = "AIzaSyBtAiQznbRhnRRZPrWf3wb2vBRsrfcXCdA";
+const DEFAULT_API_KEY = "AIzaSyCMq34t23KcTfGqOGJBNAW5-_IXI6hncT0";
 
 interface LiveAssistantProps {
   onClose: () => void;
@@ -249,8 +248,8 @@ const LiveAssistant: React.FC<LiveAssistantProps> = ({ onClose, userName, apiKey
       
       {/* Floating Blobs Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-violet-600/20 rounded-full blur-[120px] animate-pulse"></div>
-         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-fuchsia-600/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }}></div>
+         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-violet-600/20 rounded-full blur-[100px] animate-pulse"></div>
+         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-fuchsia-600/20 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '2s' }}></div>
       </div>
 
       {/* Close Button */}

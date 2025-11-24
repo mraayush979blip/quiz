@@ -8,8 +8,8 @@ import {
   doc,
   updateDoc,
   deleteDoc,
-  setDoc,
-  getDoc,
+  setDoc, // Added setDoc
+  getDoc, // Added getDoc
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -83,18 +83,16 @@ export const deleteSession = async (userId: string, sessionId: string) => {
   }
 };
 
-// --- GLOBAL CONFIG (Safe Mode) ---
+// --- GLOBAL CONFIG (For Admin Voice Key) ---
 
 export const saveGlobalConfig = async (key: string, value: any) => {
   if (!db) return;
   try {
-    // This will fail if Firestore Rules block 'config/global'
-    // Ensure rules allow write for specific admin email
+    // Using a 'config' collection and 'global' document to store app-wide settings
     await setDoc(doc(db, 'config', 'global'), { [key]: value }, { merge: true });
-  } catch (e: any) {
-    console.error("Error saving global config (Check Firestore Rules):", e.message);
-    // Don't throw, just log, so app doesn't crash. 
-    // The UI will likely fallback to local state.
+  } catch (e) {
+    console.error("Error saving global config:", e);
+    throw e;
   }
 };
 
@@ -109,11 +107,8 @@ export const getGlobalConfig = async (key: string) => {
     } else {
       return null;
     }
-  } catch (e: any) {
-    // Silent fail for permission errors to avoid console spam if rules aren't set up
-    if (!e.message.includes("insufficient permissions")) {
-       console.error("Error fetching global config:", e);
-    }
+  } catch (e) {
+    console.error("Error fetching global config:", e);
     return null;
   }
 };

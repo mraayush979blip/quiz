@@ -7,8 +7,8 @@ import {
   getUserHistory, 
   updateSessionScore, 
   deleteSession,
-  saveGlobalConfig, 
-  getGlobalConfig   
+  saveGlobalConfig, // Import new service
+  getGlobalConfig   // Import new service
 } from './services/dbService';
 import HistorySidebar from './components/HistorySidebar';
 import ProfileSidebar from './components/ProfileSidebar';
@@ -46,6 +46,7 @@ const App: React.FC = () => {
     return '';
   });
 
+  // Voice Key State (fetched from DB)
   const [voiceApiKey, setVoiceApiKey] = useState<string>('');
 
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -80,13 +81,15 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  // Fetch User History & GLOBAL Voice Key
   useEffect(() => {
     const loadData = async () => {
       if (user) {
+        // 1. Load User History
         const history = await getUserHistory(user.uid);
         setSessions(history);
 
-        // Try fetching global key, if fails (permissions), it stays empty/default
+        // 2. Load Global Voice Key (for everyone)
         const globalKey = await getGlobalConfig('voiceApiKey');
         if (globalKey) {
           setVoiceApiKey(globalKey);
@@ -113,19 +116,18 @@ const App: React.FC = () => {
     setError(null);
   };
 
+  // Admin saves key -> Updates DB -> Updates Local State
   const handleSaveVoiceKey = async (key: string) => {
-    // 1. Always update local state instantly so Admin can use it
-    setVoiceApiKey(key); 
+    setVoiceApiKey(key); // Optimistic update
     setShowVoiceKeyModal(false);
     
-    // 2. Try to save globally (Might fail if rules aren't updated)
+    // Save to Global DB config so all users get it next time
     try {
       await saveGlobalConfig('voiceApiKey', key);
-      // Only alert success if DB write actually worked
-      alert("Voice API Key updated globally.");
+      alert("Voice API Key updated globally for all users.");
     } catch (e) {
-      console.warn("Global save failed (likely permissions). Key saved locally only.");
-      // Suppress alert to avoid confusing the user if they haven't updated rules yet
+      console.error("Failed to save global key", e);
+      alert("Failed to save key to cloud.");
     }
   };
 
